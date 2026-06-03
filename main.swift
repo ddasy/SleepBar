@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 
 // SleepBar —— 菜单栏常驻的「屏幕关闭时间」临时调度工具
 //
@@ -31,6 +32,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var customMinutes: Int = 0   // 记住的上次自定义分钟数(0 = 还没设过)
     private var lang: Lang = .zh
 
+    // —— 定时锁屏(Timed Lock)——
+    // 窗口期内,每当无键鼠输入累计达「间隔」就锁一次屏。窗口是固定计时器,锁/解锁都不重置它。
+    private var tlActive = false
+    private var tlInterval: Int = 0       // 锁屏间隔(分钟),也作上次值记忆
+    private var tlWindowMin: Int = 0      // 窗口时长(分钟),也作上次值记忆
+    private var tlWindowEnd: Date?        // 窗口绝对结束时间
+    private var tlTimer: Timer?           // 自适应空闲检查(非每秒轮询)
+    private var tlWindowTimer: Timer?     // 窗口到点一次性停止
+    private var tlItem: NSMenuItem!
+
     // 预设时长(分钟),标题按语言生成
     private let presets: [Int] = [5, 10, 15, 30, 60]
 
@@ -51,6 +62,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             lang = (Locale.preferredLanguages.first?.hasPrefix("zh") ?? true) ? .zh : .en
         }
+
+        tlInterval  = UserDefaults.standard.integer(forKey: "tlInterval")
+        tlWindowMin = UserDefaults.standard.integer(forKey: "tlWindowMin")
+
+        // 监听锁屏/解锁(事件驱动,锁屏期间零轮询)
+        let dc = DistributedNotificationCenter.default()
+        dc.addObserver(self, selector: #selector(screenDidLock),
+                       name: NSNotification.Name("com.apple.screenIsLocked"), object: nil)
+        dc.addObserver(self, selector: #selector(screenDidUnlock),
+                       name: NSNotification.Name("com.apple.screenIsUnlocked"), object: nil)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         buildMenu()
@@ -124,6 +145,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lockSleepItem.image = icon("powersleep")
         menu.addItem(lockSleepItem)
 
+        // —— 定时锁屏 ——
+        menu.addItem(.sectionHeader(title: t("定时锁屏", "Timed Lock")))
+        tlItem = NSMenuItem(title: tlLabel(), action: #selector(toggleTimedLock), keyEquivalent: "")
+        tlItem.target = self
+        tlItem.image = icon("lock.rotation")
+        menu.addItem(tlItem)
+
         // —— 语言 ——
         menu.addItem(.separator())
         let langItem = NSMenuItem(title: t("语言", "Language"), action: nil, keyEquivalent: "")
@@ -161,6 +189,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lockOnlyItem.state = (endAction == .lockOnly) ? .on : .off
         lockOffItem.state = (endAction == .lockOff) ? .on : .off
         lockSleepItem.state = (endAction == .lockSleep) ? .on : .off
+        if tlItem != nil {                       // 剩余时间只在打开菜单时计算,平时不刷新(省电)
+            tlItem.title = tlLabel()
+            tlItem.state = tlActive ? .on : .off
+        }
     }
 
     // MARK: - 屏幕关闭时间动作
@@ -247,6 +279,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - caffeinate 控制
 
     private func startTimed(minutes: Int) {
+        stopTimedLock()   // 与定时锁屏互斥(一个保持常亮,一个空闲即锁,语义相反)
         killTask()
         let seconds = minutes * 60
         let p = makeCaffeinate(args: ["-dis", "-t", "\(seconds)"]) { [weak self] proc in
@@ -264,6 +297,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func startForever() {
+        stopTimedLock()   // 与定时锁屏互斥
         killTask()
         let p = makeCaffeinate(args: ["-dis"]) { _ in }   // 无 -t,常亮直到取消
         if launch(p) {
@@ -335,7 +369,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // 缓存的菜单栏图标:避免倒计时时每秒重建 NSImage
     private lazy var idleIcon: NSImage?   = makeIcon("moon.zzz")
     private lazy var activeIcon: NSImage? = makeIcon("display")
-    private var iconShowsActive: Bool?    // 记录当前图标状态,避免重复赋值
+    private lazy var tlIcon: NSImage?     = makeIcon("lock.rotation")
+    private var iconState: Int?           // 0 空闲 / 1 常亮 / 2 定时锁屏;避免重复赋值
 
     private func makeIcon(_ name: String) -> NSImage? {
         let cfg = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
@@ -357,11 +392,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // 完整刷新:仅在状态变化时调用(切换图标 + 更新标题)
     private func refreshUI() {
         guard let button = statusItem.button else { return }
-        let active = (activeMinutes != nil)
-        if iconShowsActive != active {            // 仅在空闲↔计时切换时才换图标
-            button.image = active ? activeIcon : idleIcon
+        // 图标优先级:常亮 > 定时锁屏 > 空闲
+        let state = (activeMinutes != nil) ? 1 : (tlActive ? 2 : 0)
+        if iconState != state {                   // 仅在状态切换时才换图标
+            switch state {
+            case 1:  button.image = activeIcon
+            case 2:  button.image = tlIcon
+            default: button.image = idleIcon
+            }
             button.imagePosition = .imageLeading
-            iconShowsActive = active
+            iconState = state
         }
         updateTitle()
     }
@@ -383,6 +423,160 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let h = s / 3600, m = (s % 3600) / 60, sec = s % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec)
                      : String(format: "%d:%02d", m, sec)
+    }
+
+    // MARK: - 定时锁屏
+
+    // 菜单项标题:激活时显示「每 N 分钟 · 剩 H:MM:SS」,否则显示上次设置/默认提示
+    private func tlLabel() -> String {
+        if tlActive, let end = tlWindowEnd {
+            let left = format(max(0, Int(end.timeIntervalSinceNow)))
+            return lang == .zh ? "定时锁屏:每 \(tlInterval) 分 · 剩 \(left)"
+                               : "Timed Lock: every \(tlInterval)m · \(left) left"
+        }
+        if tlInterval > 0 && tlWindowMin > 0 {
+            return lang == .zh ? "定时锁屏 (\(tlInterval) 分 / \(durationTitle(tlWindowMin)))…"
+                               : "Timed Lock (\(tlInterval)m / \(durationTitle(tlWindowMin)))…"
+        }
+        return t("定时锁屏…", "Timed Lock…")
+    }
+
+    @objc private func toggleTimedLock() {
+        if tlActive { stopTimedLock() } else { promptTimedLock() }
+    }
+
+    private func promptTimedLock() {
+        let alert = NSAlert()
+        alert.icon = NSImage(systemSymbolName: "lock.rotation", accessibilityDescription: nil)
+        alert.messageText = t("定时锁屏", "Timed Lock")
+        alert.informativeText = t("锁屏、解锁都不会影响「持续」倒计时。",
+                                  "Locking or unlocking won't affect the countdown.")
+        alert.addButton(withTitle: t("开始", "Start"))
+        alert.addButton(withTitle: t("取消", "Cancel"))
+
+        // 两行「短句 + 内嵌数字」:无操作 [5] 分钟即锁屏 / 持续 [120] 分钟后自动停止
+        let leadW: CGFloat = 78, fieldX: CGFloat = 84, fieldW: CGFloat = 56, tailX: CGFloat = 146
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 78))
+        func text(_ s: String, x: CGFloat, y: CGFloat, w: CGFloat, _ align: NSTextAlignment) -> NSTextField {
+            let l = NSTextField(labelWithString: s)
+            l.frame = NSRect(x: x, y: y, width: w, height: 22)
+            l.alignment = align
+            return l
+        }
+        func field(y: CGFloat, _ value: Int, _ placeholder: String) -> NSTextField {
+            let f = NSTextField(frame: NSRect(x: fieldX, y: y - 1, width: fieldW, height: 24))
+            f.alignment = .center
+            f.placeholderString = placeholder
+            if value > 0 { f.stringValue = "\(value)" }
+            let fmt = NumberFormatter()
+            fmt.numberStyle = .none; fmt.allowsFloats = false
+            fmt.minimum = 1; fmt.maximum = 1440
+            f.formatter = fmt
+            return f
+        }
+        let intervalField = field(y: 44, tlInterval, "5")
+        let windowField   = field(y: 8,  tlWindowMin, "120")
+        // 第 1 行:无操作 [5] 分钟即锁屏
+        container.addSubview(text(t("无操作", "Lock after"), x: 0, y: 44, w: leadW, .right))
+        container.addSubview(intervalField)
+        container.addSubview(text(t("分钟即锁屏", "min idle"), x: tailX, y: 44, w: 300 - tailX, .left))
+        // 第 2 行:持续 [120] 分钟后自动停止
+        container.addSubview(text(t("持续", "Run for"), x: 0, y: 8, w: leadW, .right))
+        container.addSubview(windowField)
+        container.addSubview(text(t("分钟后自动停止", "min, then stop"), x: tailX, y: 8, w: 300 - tailX, .left))
+        intervalField.nextKeyView = windowField
+        alert.accessoryView = container
+
+        NSApp.activate(ignoringOtherApps: true)
+        alert.window.initialFirstResponder = intervalField
+        if alert.runModal() == .alertFirstButtonReturn {
+            let iv = Int(intervalField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
+            let wv = Int(windowField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
+            guard iv > 0, wv > 0 else { return }
+            startTimedLock(interval: iv, window: max(wv, iv))  // 持续时长至少容纳一个间隔
+        }
+    }
+
+    private func startTimedLock(interval: Int, window: Int) {
+        stopCaffeinateIfRunning()          // 停掉 caffeinate(互斥)
+        tlInterval  = interval
+        tlWindowMin = window
+        UserDefaults.standard.set(interval, forKey: "tlInterval")
+        UserDefaults.standard.set(window, forKey: "tlWindowMin")
+
+        tlActive = true
+        tlWindowEnd = Date().addingTimeInterval(TimeInterval(window * 60))
+
+        tlWindowTimer?.invalidate()
+        let wt = Timer(timeInterval: TimeInterval(window * 60), repeats: false) { [weak self] _ in
+            self?.stopTimedLock()
+        }
+        wt.tolerance = 5
+        RunLoop.main.add(wt, forMode: .common)
+        tlWindowTimer = wt
+
+        // 刚点过菜单 = 有输入,idle≈0,先安排一个完整间隔后检查
+        scheduleIdleCheck(after: TimeInterval(interval * 60))
+        refreshUI(); updateChecks()
+    }
+
+    // 仅停掉 caffeinate 常亮进程(不影响定时锁屏自身状态)
+    private func stopCaffeinateIfRunning() {
+        if activeMinutes != nil { goIdle() }
+    }
+
+    private func stopTimedLock() {
+        guard tlActive || tlTimer != nil || tlWindowTimer != nil else { return }
+        tlActive = false
+        tlWindowEnd = nil
+        tlTimer?.invalidate(); tlTimer = nil
+        tlWindowTimer?.invalidate(); tlWindowTimer = nil
+        refreshUI(); updateChecks()
+    }
+
+    // 自适应调度:把下次检查安排在 seconds 之后(不超过窗口剩余),用宽松容差让系统合并唤醒
+    private func scheduleIdleCheck(after seconds: TimeInterval) {
+        tlTimer?.invalidate(); tlTimer = nil
+        guard tlActive, let end = tlWindowEnd else { return }
+        let remaining = end.timeIntervalSinceNow
+        if remaining <= 0 { stopTimedLock(); return }
+        let delay = max(1, min(seconds, remaining))
+        let tm = Timer(timeInterval: delay, repeats: false) { [weak self] _ in self?.idleCheck() }
+        tm.tolerance = max(2, delay * 0.1)
+        RunLoop.main.add(tm, forMode: .common)
+        tlTimer = tm
+    }
+
+    private func idleCheck() {
+        guard tlActive, let end = tlWindowEnd else { return }
+        if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
+        let idle = systemIdleSeconds()
+        let intervalSec = TimeInterval(tlInterval * 60)
+        if idle >= intervalSec {
+            lockScreen()
+            // 已锁屏:停掉检查,等 screenIsUnlocked 通知再重新武装(期间零轮询)
+            tlTimer?.invalidate(); tlTimer = nil
+        } else {
+            scheduleIdleCheck(after: intervalSec - idle)   // 距最早可触发还差这么多
+        }
+    }
+
+    // 只读查询系统空闲秒数(自上次键鼠输入),无需任何权限
+    private func systemIdleSeconds() -> TimeInterval {
+        CGEventSource.secondsSinceLastEventType(.combinedSessionState,
+                                                eventType: CGEventType(rawValue: ~0)!)
+    }
+
+    @objc private func screenDidLock() {
+        // 进入锁定(无论自动还是手动):空闲检查无意义,停掉,等解锁
+        guard tlActive else { return }
+        tlTimer?.invalidate(); tlTimer = nil
+    }
+
+    @objc private func screenDidUnlock() {
+        guard tlActive, let end = tlWindowEnd else { return }
+        if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
+        scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle 刚归零,重新武装
     }
 }
 

@@ -32,6 +32,7 @@ Before going to sleep you often want to leave your Mac running for a little long
 - 🖥️ **Turn off display** — lock *and* power down the display to save energy.
 - 💤 **Sleep** — put the whole Mac to sleep when the timer ends.
 - ♾️ **Keep awake forever (Never)** — one click to keep the screen on indefinitely; great for long tasks, presentations, or watching videos.
+- 🔁 **Timed Lock** — *“lock after **5 min** idle, for the next **2 hours**.”* Two numbers, one sentence: how long of no input triggers a lock, and how long the whole thing runs. SleepBar then auto-locks every time you've been idle that long, re-arming after each unlock, until the time's up. The "run for" duration is a fixed countdown — locking or unlocking never resets it. **No permissions required** (reads system idle time only, never intercepts input).
 - 🧠 **Remembers your custom duration** — your last value is saved and pre-filled, so your favorite time is one click away.
 - 🌐 **English / Chinese** — switch the entire menu instantly; follows your system language on first launch.
 - 🪶 **Extremely lightweight** — a single Swift file, zero dependencies, no background service. **~0% CPU when idle.**
@@ -82,10 +83,13 @@ Click the 💤 icon in the menu bar:
 | **When Time's Up** | Lock Screen | Lock only |
 | | Lock & Turn Off Display | Lock + power down the display |
 | | Lock, Off & Sleep | Lock + put the Mac to sleep |
+| **Timed Lock** | Timed Lock… | A two-line dialog: **"Lock after `[N]` min idle"** and **"Run for `[M]` min, then stop."** Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Both values are remembered & pre-filled |
 | **Language** | 中文 / English | Switch the whole menu instantly |
 | **Quit** | | Quit SleepBar |
 
 "When Time's Up" is a set-once, remembered preference applied at the end of every countdown.
+
+**Timed Lock** is independent of the screen-off timer (they're mutually exclusive — starting one stops the other). Example: at 12:00, choose *lock after 5 min idle* and *run for 120 min*. From 12:00 to 14:00 your Mac locks itself after every 5 minutes of inactivity; unlock, step away again, and it re-locks after another 5 minutes. The 2-hour countdown keeps running regardless of how often you lock or unlock.
 
 ## ⚙️ How it works
 
@@ -97,7 +101,9 @@ SleepBar is a friendly menu-bar wrapper around capabilities already built into m
 | Turn off display | `pmset displaysleepnow` |
 | Sleep | `pmset sleepnow` |
 | Lock screen | `SACLockScreenImmediate` from `login.framework` |
-| Remembered preferences | `UserDefaults` (language / end action / custom duration) |
+| Timed Lock — idle detection | `CGEventSource.secondsSinceLastEventType` (read-only system idle time; **no Accessibility permission**) |
+| Timed Lock — re-arm after unlock | `com.apple.screenIsUnlocked` distributed notification (event-driven, zero polling while locked) |
+| Remembered preferences | `UserDefaults` (language / end action / custom duration / lock interval / window) |
 
 Because it relies on the temporary `caffeinate` mechanism, **it never alters your system energy settings** — the moment the timer ends, your Mac is back to its normal behavior.
 
@@ -105,6 +111,7 @@ Because it relies on the temporary `caffeinate` mechanism, **it never alters you
 
 - **~0% CPU when idle** — no timer runs unless a countdown is active.
 - During a countdown, a single 1 Hz timer with system-coalesced `tolerance` updates only a short text label — **no per-frame allocations**.
+- **Timed Lock never busy-polls.** Instead of checking input every second, it schedules the next wake-up exactly `interval − current idle` seconds ahead, so it wakes the CPU at most once per interval while you're active — and while the screen is locked it does **zero polling**, simply waiting for the unlock notification. The remaining-time readout is computed only when you open the menu, not on a background tick.
 - Built with `-O` (release optimization); a single binary, no embedded frameworks, no helper processes.
 
 ## 🛠️ Build from source (development)
@@ -122,7 +129,7 @@ swiftc -O main.swift -o SleepBar -framework AppKit
 ./SleepBar
 ```
 
-The whole program is a single `main.swift` (~300 lines of AppKit) with no third-party dependencies.
+The whole program is a single `main.swift` (~580 lines of AppKit) with no third-party dependencies.
 
 ## 📋 Requirements
 
@@ -142,9 +149,9 @@ A: Yes. The installer sets up a LaunchAgent, so it reappears in the menu bar aft
 
 ## 🔎 Topics
 
-A free, open-source **menu bar** utility for macOS: **auto lock screen**, **sleep timer**, **display sleep / screen-off timer**, **keep awake**, **prevent sleep**, and a friendly **caffeinate GUI**. A minimal, native **Swift** alternative to Amphetamine, KeepingYouAwake, and Caffeine.
+A free, open-source **menu bar** utility for macOS: **auto lock screen**, **timed / recurring lock on idle**, **sleep timer**, **display sleep / screen-off timer**, **keep awake**, **prevent sleep**, and a friendly **caffeinate GUI**. A minimal, native **Swift** alternative to Amphetamine, KeepingYouAwake, and Caffeine.
 
-Suggested GitHub topics: `macos` · `menubar` · `menu-bar` · `swift` · `appkit` · `caffeinate` · `sleep-timer` · `screen-lock` · `auto-lock` · `keep-awake` · `display-sleep` · `productivity` · `macos-app`
+Suggested GitHub topics: `macos` · `menubar` · `menu-bar` · `swift` · `appkit` · `caffeinate` · `sleep-timer` · `screen-lock` · `auto-lock` · `idle-lock` · `keep-awake` · `display-sleep` · `productivity` · `macos-app`
 
 ## 📄 License
 

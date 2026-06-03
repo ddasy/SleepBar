@@ -2,3 +2,7 @@
 SleepBar
 *.o
 .DS_Store
+
+# 打包产物(由 package.sh 生成)
+build/
+*.dmg
