@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import ServiceManagement
 
 // SleepBar —— 菜单栏常驻的「屏幕关闭时间」临时调度工具
 //
@@ -41,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var tlTimer: Timer?           // 自适应空闲检查(非每秒轮询)
     private var tlWindowTimer: Timer?     // 窗口到点一次性停止
     private var tlItem: NSMenuItem!
+    private var launchItem: NSMenuItem!   // 「开机自启」开关(仅 .app 版本显示)
 
     // 预设时长(分钟),标题按语言生成
     private let presets: [Int] = [5, 10, 15, 30, 60]
@@ -168,6 +170,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         langItem.submenu = langMenu
         menu.addItem(langItem)
 
+        // —— 开机自启(仅打包成 .app 运行时才提供;裸二进制/install.sh 版由 LaunchAgent 负责)——
+        if isAppBundle {
+            launchItem = NSMenuItem(title: t("开机自启", "Launch at Login"),
+                                    action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+            launchItem.target = self
+            launchItem.image = icon("power.circle")
+            menu.addItem(launchItem)
+        }
+
         // —— 退出 ——
         let quit = NSMenuItem(title: t("退出", "Quit"), action: #selector(quit), keyEquivalent: "q")
         quit.target = self
@@ -192,6 +203,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if tlItem != nil {                       // 剩余时间只在打开菜单时计算,平时不刷新(省电)
             tlItem.title = tlLabel()
             tlItem.state = tlActive ? .on : .off
+        }
+        if launchItem != nil {
+            launchItem.state = launchAtLoginEnabled() ? .on : .off
         }
     }
 
@@ -577,6 +591,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
         scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle 刚归零,重新武装
+    }
+
+    // MARK: - 开机自启 (SMAppService;仅对 .app 包生效,无需权限)
+
+    // 是否以 .app 包形式运行(DMG 安装),而非裸可执行文件(run.sh / install.sh)
+    private var isAppBundle: Bool {
+        Bundle.main.bundleURL.pathExtension == "app"
+    }
+
+    private func launchAtLoginEnabled() -> Bool {
+        if #available(macOS 13.0, *) { return SMAppService.mainApp.status == .enabled }
+        return false
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        guard #available(macOS 13.0, *) else { return }
+        let svc = SMAppService.mainApp
+        do {
+            if svc.status == .enabled { try svc.unregister() }
+            else                      { try svc.register() }
+        } catch {
+            let alert = NSAlert()
+            alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
+            alert.messageText = t("无法设置开机自启", "Couldn't set Launch at Login")
+            alert.informativeText = t(
+                "请将 SleepBar.app 移动到「应用程序」文件夹后再试。",
+                "Move SleepBar.app to your Applications folder and try again.")
+            alert.addButton(withTitle: t("好", "OK"))
+            NSApp.activate(ignoringOtherApps: true)
+            alert.runModal()
+        }
+        updateChecks()
     }
 }
 

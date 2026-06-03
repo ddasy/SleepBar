@@ -63,6 +63,12 @@ The installer automatically: **checks the Swift toolchain → compiles → insta
 
 > If prompted to install the *Xcode Command Line Tools*, accept it and re-run the script. That's Apple's built-in compiler toolchain — no full Xcode required.
 
+### Option 3 — Download the app (DMG)
+
+Grab the latest `SleepBar-vX.Y.Z.dmg` from the [**Releases**](https://github.com/ddasy/SleepBar/releases) page, open it, and drag **SleepBar.app** into **Applications**. Then click the menu-bar icon → **Launch at Login** to start it automatically every time you log in.
+
+> The DMG is ad-hoc signed but not Apple-notarized, so on first launch you may need to **right-click the app → Open**. (The source-based options above avoid this.)
+
 ### Uninstall
 
 ```bash
@@ -85,6 +91,7 @@ Click the 💤 icon in the menu bar:
 | | Lock, Off & Sleep | Lock + put the Mac to sleep |
 | **Timed Lock** | Timed Lock… | A two-line dialog: **"Lock after `[N]` min idle"** and **"Run for `[M]` min, then stop."** Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Both values are remembered & pre-filled |
 | **Language** | 中文 / English | Switch the whole menu instantly |
+| **Launch at Login** | toggle | Auto-start when you log in. Shown **only in the packaged app (DMG)**; the `install.sh` build already auto-starts via its LaunchAgent |
 | **Quit** | | Quit SleepBar |
 
 "When Time's Up" is a set-once, remembered preference applied at the end of every countdown.
