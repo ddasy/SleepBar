@@ -6,3 +6,7 @@ SleepBar
 # 打包产物(由 package.sh 生成)
 build/
 *.dmg
+
+# Finder 自定义图标残留文件(手动粘贴图标时产生)
+Icon
+Icon?

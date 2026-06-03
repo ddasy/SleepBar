@@ -39,9 +39,9 @@ Before going to sleep you often want to leave your Mac running for a little long
 
 ## 📸 Screenshots
 
-| Chinese UI | English UI | Counting down |
-|:---:|:---:|:---:|
-| ![SleepBar Chinese menu bar screen-off timer](screenshots/zh.png) | ![SleepBar English menu bar auto lock and sleep timer](screenshots/en.png) | ![SleepBar live countdown in the macOS menu bar](screenshots/countdown.png) |
+| Chinese UI | English UI |
+|:---:|:---:|
+| ![SleepBar Chinese menu bar screen-off timer demo](screenshots/CN.gif) | ![SleepBar English menu bar auto lock and sleep timer demo](screenshots/English.gif) |
 
 ## 🚀 Installation
 
