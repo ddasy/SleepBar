@@ -1,0 +1,151 @@
+<div align="center">
+
+# 🌙 SleepBar
+
+**A lightweight macOS menu bar timer that locks, dims, or sleeps your Mac after a countdown.**
+
+*Set a screen-off timer before bed — give your Mac one last task and let it auto-lock or sleep when time's up.*
+
+**English** · [简体中文](README.zh-CN.md)
+
+![platform](https://img.shields.io/badge/platform-macOS%2014%2B-blue)
+![language](https://img.shields.io/badge/built%20with-Swift-orange)
+![license](https://img.shields.io/badge/license-MIT-green)
+![cpu](https://img.shields.io/badge/idle%20CPU-0%25-success)
+
+</div>
+
+---
+
+## What is this?
+
+Before going to sleep you often want to leave your Mac running for a little longer — until a script finishes, an AI agent completes a task, or a download wraps up. But the macOS **"turn display off"** delay is a *fixed* setting: 5 minutes this time, 1 hour the next — and changing it means digging into System Settings every single time.
+
+**SleepBar** moves that control to your menu bar. Click the icon, pick a duration, and your screen stays awake for exactly that long. When the countdown ends, your Mac **automatically locks, turns off the display, or even goes to sleep** — whatever you chose. Your task finishes, and your Mac rests.
+
+> No system settings are modified and no `sudo` is required. The moment the timer ends, everything returns to normal.
+
+## ✨ Features
+
+- ⏱️ **Countdown screen-off** — presets of 5 / 10 / 15 / 30 min, 1 hour, or **any custom duration**. The remaining time ticks live in the menu bar.
+- 🔒 **Lock screen** — lock to the login window when time's up.
+- 🖥️ **Turn off display** — lock *and* power down the display to save energy.
+- 💤 **Sleep** — put the whole Mac to sleep when the timer ends.
+- ♾️ **Keep awake forever (Never)** — one click to keep the screen on indefinitely; great for long tasks, presentations, or watching videos.
+- 🧠 **Remembers your custom duration** — your last value is saved and pre-filled, so your favorite time is one click away.
+- 🌐 **English / Chinese** — switch the entire menu instantly; follows your system language on first launch.
+- 🪶 **Extremely lightweight** — a single Swift file, zero dependencies, no background service. **~0% CPU when idle.**
+
+## 📸 Screenshots
+
+| Chinese UI | English UI | Counting down |
+|:---:|:---:|:---:|
+| ![SleepBar Chinese menu bar screen-off timer](screenshots/zh.png) | ![SleepBar English menu bar auto lock and sleep timer](screenshots/en.png) | ![SleepBar live countdown in the macOS menu bar](screenshots/countdown.png) |
+
+## 🚀 Installation
+
+### Option 1 — One line (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ddasy/SleepBar/main/install.sh | bash
+```
+
+### Option 2 — Clone, then install
+
+```bash
+git clone https://github.com/ddasy/SleepBar.git
+cd SleepBar
+./install.sh
+```
+
+The installer automatically: **checks the Swift toolchain → compiles → installs locally → sets up launch-at-login → starts the app.** The 💤 icon appears in your menu bar right away and **launches automatically on every login**.
+
+> If prompted to install the *Xcode Command Line Tools*, accept it and re-run the script. That's Apple's built-in compiler toolchain — no full Xcode required.
+
+### Uninstall
+
+```bash
+./uninstall.sh
+```
+
+Stops the app, removes launch-at-login, and deletes the binary and preferences.
+
+## 🖱️ Usage
+
+Click the 💤 icon in the menu bar:
+
+| Section | Option | What it does |
+|---|---|---|
+| **Screen Off Timer** | 5 / 10 / 15 / 30 min, 1 hour | Starts a countdown; **click again to cancel** |
+| | Custom… | Enter any number of minutes; **remembered & pre-filled** next time |
+| | Never | Keep the screen on forever (menu bar shows `∞`) |
+| **When Time's Up** | Lock Screen | Lock only |
+| | Lock & Turn Off Display | Lock + power down the display |
+| | Lock, Off & Sleep | Lock + put the Mac to sleep |
+| **Language** | 中文 / English | Switch the whole menu instantly |
+| **Quit** | | Quit SleepBar |
+
+"When Time's Up" is a set-once, remembered preference applied at the end of every countdown.
+
+## ⚙️ How it works
+
+SleepBar is a friendly menu-bar wrapper around capabilities already built into macOS:
+
+| Feature | Under the hood |
+|---|---|
+| Keep awake / countdown | `caffeinate -dis -t <seconds>` (no `sudo`, auto-expires) |
+| Turn off display | `pmset displaysleepnow` |
+| Sleep | `pmset sleepnow` |
+| Lock screen | `SACLockScreenImmediate` from `login.framework` |
+| Remembered preferences | `UserDefaults` (language / end action / custom duration) |
+
+Because it relies on the temporary `caffeinate` mechanism, **it never alters your system energy settings** — the moment the timer ends, your Mac is back to its normal behavior.
+
+## 🔋 Low power by design
+
+- **~0% CPU when idle** — no timer runs unless a countdown is active.
+- During a countdown, a single 1 Hz timer with system-coalesced `tolerance` updates only a short text label — **no per-frame allocations**.
+- Built with `-O` (release optimization); a single binary, no embedded frameworks, no helper processes.
+
+## 🛠️ Build from source (development)
+
+```bash
+git clone https://github.com/ddasy/SleepBar.git
+cd SleepBar
+./run.sh          # compile and launch; re-run after edits for a hot reload
+```
+
+Or manually:
+
+```bash
+swiftc -O main.swift -o SleepBar -framework AppKit
+./SleepBar
+```
+
+The whole program is a single `main.swift` (~300 lines of AppKit) with no third-party dependencies.
+
+## 📋 Requirements
+
+- macOS 14 (Sonoma) or later (uses the native `sectionHeader` menu API)
+- Xcode Command Line Tools (`xcode-select --install`; the installer prompts you)
+
+## ❓ FAQ
+
+**Q: "Lock screen" uses a private API — is that safe?**
+A: It calls the lock function inside the system's `login.framework` (equivalent to pressing your lock-screen shortcut). It needs no Accessibility permission and sends no data anywhere. If a future major macOS release changes it, open an issue.
+
+**Q: Will it secretly keep my Mac awake?**
+A: No. The screen stays on **only** when you actively pick a duration or "Never." On launch it's idle and fully respects your system settings.
+
+**Q: Does it survive a reboot?**
+A: Yes. The installer sets up a LaunchAgent, so it reappears in the menu bar after you log in.
+
+## 🔎 Topics
+
+A free, open-source **menu bar** utility for macOS: **auto lock screen**, **sleep timer**, **display sleep / screen-off timer**, **keep awake**, **prevent sleep**, and a friendly **caffeinate GUI**. A minimal, native **Swift** alternative to Amphetamine, KeepingYouAwake, and Caffeine.
+
+Suggested GitHub topics: `macos` · `menubar` · `menu-bar` · `swift` · `appkit` · `caffeinate` · `sleep-timer` · `screen-lock` · `auto-lock` · `keep-awake` · `display-sleep` · `productivity` · `macos-app`
+
+## 📄 License
+
+[MIT](LICENSE) © 2026

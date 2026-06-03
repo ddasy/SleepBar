@@ -1,0 +1,4 @@
+# 编译产物(由 install.sh / run.sh 现场生成,不入库)
+SleepBar
+*.o
+.DS_Store
