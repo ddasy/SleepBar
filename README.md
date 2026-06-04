@@ -59,7 +59,15 @@ cd SleepBar
 ./install.sh
 ```
 
-The installer automatically: **checks the Swift toolchain → compiles → installs locally → sets up launch-at-login → starts the app.** The 💤 icon appears in your menu bar right away and **launches automatically on every login**.
+The installer automatically: **checks the Swift toolchain → compiles → builds `~/Applications/SleepBar.app` → adds the `sleepbar` shell alias → starts the app with launch-at-login enabled.** No `sudo` needed — everything lives in your home directory. The 💤 icon appears in your menu bar right away and **launches automatically on every login** (toggle anytime: menu-bar icon → **Launch at Login**).
+
+Quit it by accident? Start it again with **Spotlight (⌘Space) → SleepBar**, or just type:
+
+```bash
+sleepbar
+```
+
+> The `sleepbar` alias lives in `~/.zshrc`, so it works in Terminal windows opened after the install.
 
 > If prompted to install the *Xcode Command Line Tools*, accept it and re-run the script. That's Apple's built-in compiler toolchain — no full Xcode required.
 
@@ -75,7 +83,7 @@ Grab the latest `SleepBar-vX.Y.Z.dmg` from the [**Releases**](https://github.com
 ./uninstall.sh
 ```
 
-Stops the app, removes launch-at-login, and deletes the binary and preferences.
+Stops the app, removes launch-at-login, and deletes the app, the `sleepbar` alias, and preferences.
 
 ## 🖱️ Usage
 
@@ -91,7 +99,7 @@ Click the 💤 icon in the menu bar:
 | | Lock, Off & Sleep | Lock + put the Mac to sleep |
 | **Timed Lock** | Timed Lock… | A two-line dialog: **"Lock after `[N]` min idle"** and **"Run for `[M]` min, then stop."** Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Both values are remembered & pre-filled |
 | **Language** | 中文 / English | Switch the whole menu instantly |
-| **Launch at Login** | toggle | Auto-start when you log in. Shown **only in the packaged app (DMG)**; the `install.sh` build already auto-starts via its LaunchAgent |
+| **Launch at Login** | toggle | Auto-start when you log in (a standard macOS Login Item). `install.sh` turns it **on** by default — uncheck here to disable |
 | **Quit** | | Quit SleepBar |
 
 "When Time's Up" is a set-once, remembered preference applied at the end of every countdown.
@@ -152,7 +160,10 @@ A: It calls the lock function inside the system's `login.framework` (equivalent 
 A: No. The screen stays on **only** when you actively pick a duration or "Never." On launch it's idle and fully respects your system settings.
 
 **Q: Does it survive a reboot?**
-A: Yes. The installer sets up a LaunchAgent, so it reappears in the menu bar after you log in.
+A: Yes. The installer registers SleepBar as a Login Item, so it reappears in the menu bar after you log in. Don't want that? Uncheck **Launch at Login** in the menu.
+
+**Q: I quit it by accident — how do I start it again?**
+A: **Spotlight (⌘Space) → SleepBar**, or type `sleepbar` in Terminal.
 
 ## 🔎 Topics
 

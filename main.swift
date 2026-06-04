@@ -75,6 +75,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         dc.addObserver(self, selector: #selector(screenDidUnlock),
                        name: NSNotification.Name("com.apple.screenIsUnlocked"), object: nil)
 
+        // install.sh 安装后首次启动传入 --register-login:注册为系统「登录项」
+        // (SMAppService;之后可随时在菜单「开机自启」里取消)
+        if CommandLine.arguments.contains("--register-login"), isAppBundle,
+           #available(macOS 13.0, *) {
+            try? SMAppService.mainApp.register()
+        }
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         buildMenu()
         refreshUI()
@@ -170,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         langItem.submenu = langMenu
         menu.addItem(langItem)
 
-        // —— 开机自启(仅打包成 .app 运行时才提供;裸二进制/install.sh 版由 LaunchAgent 负责)——
+        // —— 开机自启(以 .app 运行时显示;install.sh 与 DMG 均安装为 .app,仅 run.sh 裸二进制开发模式隐藏)——
         if isAppBundle {
             launchItem = NSMenuItem(title: t("开机自启", "Launch at Login"),
                                     action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
@@ -624,6 +631,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         updateChecks()
     }
+}
+
+// uninstall.sh 调用:仅注销「登录项」后退出,不启动 UI(须在删除 .app 前执行)
+if CommandLine.arguments.contains("--unregister-login") {
+    if #available(macOS 13.0, *) { try? SMAppService.mainApp.unregister() }
+    exit(0)
 }
 
 let app = NSApplication.shared
