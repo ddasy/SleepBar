@@ -2,52 +2,313 @@ import AppKit
 import CoreGraphics
 import ServiceManagement
 
-// SleepBar —— 菜单栏常驻的「屏幕关闭时间」临时调度工具
+// SleepBar — a menu-bar tool for temporarily scheduling "screen off time".
 //
-// 语义:
-//  · 「屏幕关闭时间」单选一个时长 → 这段时间内屏幕保持常亮(caffeinate -dis),
-//    到点执行「到时间后」动作。「永不」= 一直常亮不关。再次点已选中项 = 取消(回到系统原设置)。
-//  · 「到时间后」是会记住的偏好:锁定并熄屏 / 锁定、熄屏并休眠。
-//
-// 测试阶段:直接编译成可执行文件运行,不打包 .app / DMG。
+// Semantics:
+//  · "Screen Off Timer" picks one duration → the screen stays awake for that long
+//    (caffeinate -dis), then the "When Time's Up" action runs. "Never" = stay awake
+//    indefinitely. Clicking the selected item again = cancel (back to system defaults).
+//  · "When Time's Up" is a remembered preference: lock & turn off display /
+//    lock, turn off & sleep.
 
 enum EndAction: String {
-    case lockOnly  = "lockOnly"   // 锁定屏幕
-    case lockOff   = "lockOff"    // 锁定并熄屏
-    case lockSleep = "lockSleep"  // 锁定、熄屏并休眠
+    case lockOnly  = "lockOnly"   // lock the screen
+    case lockOff   = "lockOff"    // lock & turn off the display
+    case lockSleep = "lockSleep"  // lock, turn off & sleep
 }
 
-enum Lang: String { case zh, en }
+enum Lang: String, CaseIterable {
+    case zh, en, es, ar, pt, ja, de   // pt = Brazilian Portuguese
+
+    // Shown in the Language submenu, always in the language itself
+    var nativeName: String {
+        switch self {
+        case .zh: return "中文"
+        case .en: return "English"
+        case .es: return "Español"
+        case .ar: return "العربية"
+        case .pt: return "Português (Brasil)"
+        case .ja: return "日本語"
+        case .de: return "Deutsch"
+        }
+    }
+
+    // Best match for the system's preferred language; English if none matches
+    static var systemDefault: Lang {
+        let pref = Locale.preferredLanguages.first ?? "en"
+        for l in Lang.allCases where pref.hasPrefix(l.rawValue) { return l }
+        return .en
+    }
+}
+
+// MARK: - Localization tables
+
+// UI strings for every supported language, keyed by a stable identifier.
+// %d / %@ placeholders are filled via String(format:).
+private let l10n: [Lang: [String: String]] = [
+    .zh: [
+        "section.screenOff":   "屏幕关闭时间",
+        "menu.custom":         "自定义时长…",
+        "menu.customFmt":      "自定义 (%@)",
+        "menu.never":          "永不",
+        "section.endAction":   "到时间后",
+        "menu.lockOnly":       "锁定屏幕",
+        "menu.lockOff":        "锁定并熄屏",
+        "menu.lockSleep":      "锁定、熄屏并休眠",
+        "section.timedLock":   "定时锁屏",
+        "menu.language":       "语言",
+        "menu.launchAtLogin":  "开机自启",
+        "menu.quit":           "退出",
+        "unit.min":            "%d 分钟",
+        "unit.hour":           "%d 小时",
+        "unit.hours":          "%d 小时",
+        "custom.title":        "自定义屏幕关闭时间",
+        "custom.prompt":       "输入分钟数,回车确认:",
+        "custom.placeholder":  "分钟,例如 45",
+        "btn.start":           "开始",
+        "btn.cancel":          "取消",
+        "btn.ok":              "好",
+        "tl.ellipsis":         "定时锁屏…",
+        "tl.activeFmt":        "定时锁屏:每 %d 分 · 剩 %@",
+        "tl.savedFmt":         "定时锁屏 (%d 分 / %@)…",
+        "tl.note":             "锁屏、解锁都不会影响「持续」倒计时。",
+        "tl.lockAfter":        "无操作",
+        "tl.minIdle":          "分钟即锁屏",
+        "tl.runFor":           "持续",
+        "tl.thenStop":         "分钟后自动停止",
+        "login.errTitle":      "无法设置开机自启",
+        "login.errMsg":        "请将 SleepBar.app 移动到「应用程序」文件夹后再试。",
+    ],
+    .en: [
+        "section.screenOff":   "Screen Off Timer",
+        "menu.custom":         "Custom…",
+        "menu.customFmt":      "Custom (%@)",
+        "menu.never":          "Never",
+        "section.endAction":   "When Time's Up",
+        "menu.lockOnly":       "Lock Screen",
+        "menu.lockOff":        "Lock & Turn Off Display",
+        "menu.lockSleep":      "Lock, Off & Sleep",
+        "section.timedLock":   "Timed Lock",
+        "menu.language":       "Language",
+        "menu.launchAtLogin":  "Launch at Login",
+        "menu.quit":           "Quit",
+        "unit.min":            "%d min",
+        "unit.hour":           "%d hour",
+        "unit.hours":          "%d hours",
+        "custom.title":        "Custom Screen-Off Time",
+        "custom.prompt":       "Enter minutes, press Return:",
+        "custom.placeholder":  "minutes, e.g. 45",
+        "btn.start":           "Start",
+        "btn.cancel":          "Cancel",
+        "btn.ok":              "OK",
+        "tl.ellipsis":         "Timed Lock…",
+        "tl.activeFmt":        "Timed Lock: every %dm · %@ left",
+        "tl.savedFmt":         "Timed Lock (%dm / %@)…",
+        "tl.note":             "Locking or unlocking won't affect the countdown.",
+        "tl.lockAfter":        "Lock after",
+        "tl.minIdle":          "min idle",
+        "tl.runFor":           "Run for",
+        "tl.thenStop":         "min, then stop",
+        "login.errTitle":      "Couldn't set Launch at Login",
+        "login.errMsg":        "Move SleepBar.app to your Applications folder and try again.",
+    ],
+    .es: [
+        "section.screenOff":   "Temporizador de pantalla",
+        "menu.custom":         "Personalizado…",
+        "menu.customFmt":      "Personalizado (%@)",
+        "menu.never":          "Nunca",
+        "section.endAction":   "Al terminar",
+        "menu.lockOnly":       "Bloquear pantalla",
+        "menu.lockOff":        "Bloquear y apagar pantalla",
+        "menu.lockSleep":      "Bloquear, apagar y suspender",
+        "section.timedLock":   "Bloqueo programado",
+        "menu.language":       "Idioma",
+        "menu.launchAtLogin":  "Abrir al iniciar sesión",
+        "menu.quit":           "Salir",
+        "unit.min":            "%d min",
+        "unit.hour":           "%d hora",
+        "unit.hours":          "%d horas",
+        "custom.title":        "Tiempo personalizado",
+        "custom.prompt":       "Introduce los minutos y pulsa Intro:",
+        "custom.placeholder":  "minutos, p. ej. 45",
+        "btn.start":           "Iniciar",
+        "btn.cancel":          "Cancelar",
+        "btn.ok":              "Aceptar",
+        "tl.ellipsis":         "Bloqueo programado…",
+        "tl.activeFmt":        "Bloqueo: cada %d min · quedan %@",
+        "tl.savedFmt":         "Bloqueo programado (%d min / %@)…",
+        "tl.note":             "Bloquear o desbloquear no afecta a la cuenta atrás.",
+        "tl.lockAfter":        "Bloquear tras",
+        "tl.minIdle":          "min inactivo",
+        "tl.runFor":           "Durante",
+        "tl.thenStop":         "min, luego parar",
+        "login.errTitle":      "No se pudo configurar el inicio de sesión",
+        "login.errMsg":        "Mueve SleepBar.app a la carpeta Aplicaciones e inténtalo de nuevo.",
+    ],
+    .ar: [
+        "section.screenOff":   "مؤقّت إطفاء الشاشة",
+        "menu.custom":         "مخصّص…",
+        "menu.customFmt":      "مخصّص (%@)",
+        "menu.never":          "أبدًا",
+        "section.endAction":   "عند انتهاء الوقت",
+        "menu.lockOnly":       "قفل الشاشة",
+        "menu.lockOff":        "قفل وإطفاء الشاشة",
+        "menu.lockSleep":      "قفل وإطفاء وسبات",
+        "section.timedLock":   "قفل دوري",
+        "menu.language":       "اللغة",
+        "menu.launchAtLogin":  "الفتح عند تسجيل الدخول",
+        "menu.quit":           "إنهاء",
+        "unit.min":            "%d دقيقة",
+        "unit.hour":           "%d ساعة",
+        "unit.hours":          "%d ساعات",
+        "custom.title":        "وقت مخصّص لإطفاء الشاشة",
+        "custom.prompt":       "أدخل عدد الدقائق ثم اضغط Return:",
+        "custom.placeholder":  "دقائق، مثل 45",
+        "btn.start":           "بدء",
+        "btn.cancel":          "إلغاء",
+        "btn.ok":              "حسنًا",
+        "tl.ellipsis":         "قفل دوري…",
+        "tl.activeFmt":        "قفل دوري: كل %dد · متبقٍ %@",
+        "tl.savedFmt":         "قفل دوري (%d دقيقة / %@)…",
+        "tl.note":             "القفل أو فتح القفل لا يؤثّر على العدّاد.",
+        "tl.lockAfter":        "القفل بعد",
+        "tl.minIdle":          "دقيقة خمول",
+        "tl.runFor":           "التشغيل لمدة",
+        "tl.thenStop":         "دقيقة ثم التوقّف",
+        "login.errTitle":      "تعذّر تفعيل الفتح عند تسجيل الدخول",
+        "login.errMsg":        "انقل SleepBar.app إلى مجلد التطبيقات وحاول مجددًا.",
+    ],
+    .pt: [
+        "section.screenOff":   "Temporizador de tela",
+        "menu.custom":         "Personalizado…",
+        "menu.customFmt":      "Personalizado (%@)",
+        "menu.never":          "Nunca",
+        "section.endAction":   "Ao terminar",
+        "menu.lockOnly":       "Bloquear tela",
+        "menu.lockOff":        "Bloquear e desligar a tela",
+        "menu.lockSleep":      "Bloquear, desligar e suspender",
+        "section.timedLock":   "Bloqueio programado",
+        "menu.language":       "Idioma",
+        "menu.launchAtLogin":  "Abrir ao fazer login",
+        "menu.quit":           "Encerrar",
+        "unit.min":            "%d min",
+        "unit.hour":           "%d hora",
+        "unit.hours":          "%d horas",
+        "custom.title":        "Tempo personalizado",
+        "custom.prompt":       "Digite os minutos e pressione Return:",
+        "custom.placeholder":  "minutos, ex.: 45",
+        "btn.start":           "Iniciar",
+        "btn.cancel":          "Cancelar",
+        "btn.ok":              "OK",
+        "tl.ellipsis":         "Bloqueio programado…",
+        "tl.activeFmt":        "Bloqueio: a cada %d min · faltam %@",
+        "tl.savedFmt":         "Bloqueio programado (%d min / %@)…",
+        "tl.note":             "Bloquear ou desbloquear não afeta a contagem.",
+        "tl.lockAfter":        "Bloquear após",
+        "tl.minIdle":          "min inativo",
+        "tl.runFor":           "Durante",
+        "tl.thenStop":         "min, depois parar",
+        "login.errTitle":      "Não foi possível ativar a abertura ao fazer login",
+        "login.errMsg":        "Mova o SleepBar.app para a pasta Aplicativos e tente novamente.",
+    ],
+    .ja: [
+        "section.screenOff":   "画面オフタイマー",
+        "menu.custom":         "カスタム…",
+        "menu.customFmt":      "カスタム (%@)",
+        "menu.never":          "オフにしない",
+        "section.endAction":   "時間になったら",
+        "menu.lockOnly":       "画面をロック",
+        "menu.lockOff":        "ロックして画面をオフ",
+        "menu.lockSleep":      "ロック・オフしてスリープ",
+        "section.timedLock":   "定期ロック",
+        "menu.language":       "言語",
+        "menu.launchAtLogin":  "ログイン時に起動",
+        "menu.quit":           "終了",
+        "unit.min":            "%d 分",
+        "unit.hour":           "%d 時間",
+        "unit.hours":          "%d 時間",
+        "custom.title":        "カスタム画面オフ時間",
+        "custom.prompt":       "分数を入力し、Return キーを押してください:",
+        "custom.placeholder":  "分(例: 45)",
+        "btn.start":           "開始",
+        "btn.cancel":          "キャンセル",
+        "btn.ok":              "OK",
+        "tl.ellipsis":         "定期ロック…",
+        "tl.activeFmt":        "定期ロック:%d 分ごと · 残り %@",
+        "tl.savedFmt":         "定期ロック (%d 分 / %@)…",
+        "tl.note":             "ロック/ロック解除してもカウントダウンは止まりません。",
+        "tl.lockAfter":        "無操作",
+        "tl.minIdle":          "分でロック",
+        "tl.runFor":           "継続",
+        "tl.thenStop":         "分後に自動停止",
+        "login.errTitle":      "ログイン時の起動を設定できません",
+        "login.errMsg":        "SleepBar.app を「アプリケーション」フォルダに移動してからもう一度お試しください。",
+    ],
+    .de: [
+        "section.screenOff":   "Bildschirm-Timer",
+        "menu.custom":         "Eigene Dauer…",
+        "menu.customFmt":      "Eigene Dauer (%@)",
+        "menu.never":          "Nie",
+        "section.endAction":   "Nach Ablauf",
+        "menu.lockOnly":       "Bildschirm sperren",
+        "menu.lockOff":        "Sperren und Bildschirm ausschalten",
+        "menu.lockSleep":      "Sperren, ausschalten & Ruhezustand",
+        "section.timedLock":   "Zeitgesteuerte Sperre",
+        "menu.language":       "Sprache",
+        "menu.launchAtLogin":  "Bei der Anmeldung öffnen",
+        "menu.quit":           "Beenden",
+        "unit.min":            "%d Min.",
+        "unit.hour":           "%d Stunde",
+        "unit.hours":          "%d Stunden",
+        "custom.title":        "Eigene Ausschaltzeit",
+        "custom.prompt":       "Minuten eingeben, Eingabetaste drücken:",
+        "custom.placeholder":  "Minuten, z. B. 45",
+        "btn.start":           "Starten",
+        "btn.cancel":          "Abbrechen",
+        "btn.ok":              "OK",
+        "tl.ellipsis":         "Zeitgesteuerte Sperre…",
+        "tl.activeFmt":        "Sperre: alle %d Min. · noch %@",
+        "tl.savedFmt":         "Zeitgesteuerte Sperre (%d Min. / %@)…",
+        "tl.note":             "Sperren oder Entsperren beeinflusst den Countdown nicht.",
+        "tl.lockAfter":        "Sperren nach",
+        "tl.minIdle":          "Min. Inaktivität",
+        "tl.runFor":           "Dauer",
+        "tl.thenStop":         "Min., dann stoppen",
+        "login.errTitle":      "„Bei der Anmeldung öffnen“ konnte nicht aktiviert werden",
+        "login.errMsg":        "Verschiebe SleepBar.app in den Ordner „Programme“ und versuche es erneut.",
+    ],
+]
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var statusItem: NSStatusItem!
-    private var task: Process?            // 当前 caffeinate 进程
-    private var endDate: Date?            // 计时结束时间(永不/空闲为 nil)
+    private var task: Process?            // current caffeinate process
+    private var endDate: Date?            // countdown end time (nil for never/idle)
     private var ticker: Timer?
 
-    // activeMinutes: nil = 空闲(系统原设置);-1 = 永不(常亮);>0 = 计时分钟数
+    // activeMinutes: nil = idle (system defaults); -1 = never (always awake); >0 = countdown minutes
     private var activeMinutes: Int?
 
     private var endAction: EndAction = .lockOff
-    private var customMinutes: Int = 0   // 记住的上次自定义分钟数(0 = 还没设过)
-    private var lang: Lang = .zh
+    private var customMinutes: Int = 0   // last custom duration in minutes (0 = never set)
+    private var lang: Lang = .en
 
-    // —— 定时锁屏(Timed Lock)——
-    // 窗口期内,每当无键鼠输入累计达「间隔」就锁一次屏。窗口是固定计时器,锁/解锁都不重置它。
+    // —— Timed Lock ——
+    // Within the window, lock the screen every time idle input reaches "interval".
+    // The window is a fixed countdown; locking/unlocking never resets it.
     private var tlActive = false
-    private var tlInterval: Int = 0       // 锁屏间隔(分钟),也作上次值记忆
-    private var tlWindowMin: Int = 0      // 窗口时长(分钟),也作上次值记忆
-    private var tlWindowEnd: Date?        // 窗口绝对结束时间
-    private var tlTimer: Timer?           // 自适应空闲检查(非每秒轮询)
-    private var tlWindowTimer: Timer?     // 窗口到点一次性停止
+    private var tlInterval: Int = 0       // lock interval (minutes), also remembers the last value
+    private var tlWindowMin: Int = 0      // window length (minutes), also remembers the last value
+    private var tlWindowEnd: Date?        // absolute end time of the window
+    private var tlTimer: Timer?           // adaptive idle check (not a per-second poll)
+    private var tlWindowTimer: Timer?     // one-shot stop when the window ends
     private var tlItem: NSMenuItem!
-    private var launchItem: NSMenuItem!   // 「开机自启」开关(仅 .app 版本显示)
+    private var launchItem: NSMenuItem!   // "Launch at Login" toggle (.app builds only)
 
-    // 预设时长(分钟),标题按语言生成
+    // Preset durations (minutes); titles are generated per language
     private let presets: [Int] = [5, 10, 15, 30, 60]
 
-    // 菜单项引用(用于更新对勾)
+    // Menu item references (for updating checkmarks)
     private var presetItems: [(min: Int, item: NSMenuItem)] = []
     private var customItem: NSMenuItem!
     private var neverItem: NSMenuItem!
@@ -62,21 +323,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let s = UserDefaults.standard.string(forKey: "lang"), let l = Lang(rawValue: s) {
             lang = l
         } else {
-            lang = (Locale.preferredLanguages.first?.hasPrefix("zh") ?? true) ? .zh : .en
+            lang = Lang.systemDefault
         }
 
         tlInterval  = UserDefaults.standard.integer(forKey: "tlInterval")
         tlWindowMin = UserDefaults.standard.integer(forKey: "tlWindowMin")
 
-        // 监听锁屏/解锁(事件驱动,锁屏期间零轮询)
+        // Observe lock/unlock (event-driven; zero polling while locked)
         let dc = DistributedNotificationCenter.default()
         dc.addObserver(self, selector: #selector(screenDidLock),
                        name: NSNotification.Name("com.apple.screenIsLocked"), object: nil)
         dc.addObserver(self, selector: #selector(screenDidUnlock),
                        name: NSNotification.Name("com.apple.screenIsUnlocked"), object: nil)
 
-        // install.sh 安装后首次启动传入 --register-login:注册为系统「登录项」
-        // (SMAppService;之后可随时在菜单「开机自启」里取消)
+        // install.sh passes --register-login on the first launch after installing:
+        // register as a Login Item (SMAppService; uncheck anytime via "Launch at Login")
         if CommandLine.arguments.contains("--register-login"), isAppBundle,
            #available(macOS 13.0, *) {
             try? SMAppService.mainApp.register()
@@ -87,26 +348,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshUI()
     }
 
-    // MARK: - 本地化
+    // MARK: - Localization
 
-    private func t(_ zh: String, _ en: String) -> String { lang == .zh ? zh : en }
+    private func t(_ key: String) -> String {
+        l10n[lang]?[key] ?? l10n[.en]?[key] ?? key
+    }
 
-    // 分钟 → 本地化标题:5 分钟 / 5 min,1 小时 / 1 hour
+    // Minutes → localized title: "5 min" / "1 hour" (or their localized equivalents)
     private func durationTitle(_ minutes: Int) -> String {
         if minutes >= 60 && minutes % 60 == 0 {
             let h = minutes / 60
-            return lang == .zh ? "\(h) 小时" : (h > 1 ? "\(h) hours" : "1 hour")
+            return String(format: t(h == 1 ? "unit.hour" : "unit.hours"), h)
         }
-        return lang == .zh ? "\(minutes) 分钟" : "\(minutes) min"
+        return String(format: t("unit.min"), minutes)
     }
 
     private func customLabel() -> String {
-        guard customMinutes > 0 else { return t("自定义时长…", "Custom…") }
-        return lang == .zh ? "自定义 (\(durationTitle(customMinutes)))"
-                           : "Custom (\(durationTitle(customMinutes)))"
+        guard customMinutes > 0 else { return t("menu.custom") }
+        return String(format: t("menu.customFmt"), durationTitle(customMinutes))
     }
 
-    // MARK: - 菜单构建
+    // MARK: - Menu building
 
     private func icon(_ name: String) -> NSImage? {
         NSImage(systemSymbolName: name, accessibilityDescription: nil)
@@ -117,8 +379,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         presetItems = []
 
-        // —— 屏幕关闭时间 ——
-        menu.addItem(.sectionHeader(title: t("屏幕关闭时间", "Screen Off Timer")))
+        // —— Screen Off Timer ——
+        menu.addItem(.sectionHeader(title: t("section.screenOff")))
         for minutes in presets {
             let item = NSMenuItem(title: durationTitle(minutes), action: #selector(pickPreset(_:)), keyEquivalent: "")
             item.target = self
@@ -132,62 +394,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         customItem.image = icon("slider.horizontal.3")
         menu.addItem(customItem)
 
-        neverItem = NSMenuItem(title: t("永不", "Never"), action: #selector(pickNever), keyEquivalent: "")
+        neverItem = NSMenuItem(title: t("menu.never"), action: #selector(pickNever), keyEquivalent: "")
         neverItem.target = self
         neverItem.image = icon("nosign")
         menu.addItem(neverItem)
 
-        // —— 到时间后 ——
-        menu.addItem(.sectionHeader(title: t("到时间后", "When Time's Up")))
-        lockOnlyItem = NSMenuItem(title: t("锁定屏幕", "Lock Screen"), action: #selector(pickLockOnly), keyEquivalent: "")
+        // —— When Time's Up ——
+        menu.addItem(.sectionHeader(title: t("section.endAction")))
+        lockOnlyItem = NSMenuItem(title: t("menu.lockOnly"), action: #selector(pickLockOnly), keyEquivalent: "")
         lockOnlyItem.target = self
         lockOnlyItem.image = icon("lock")
         menu.addItem(lockOnlyItem)
 
-        lockOffItem = NSMenuItem(title: t("锁定并熄屏", "Lock & Turn Off Display"), action: #selector(pickLockOff), keyEquivalent: "")
+        lockOffItem = NSMenuItem(title: t("menu.lockOff"), action: #selector(pickLockOff), keyEquivalent: "")
         lockOffItem.target = self
         lockOffItem.image = icon("lock.display")
         menu.addItem(lockOffItem)
 
-        lockSleepItem = NSMenuItem(title: t("锁定、熄屏并休眠", "Lock, Off & Sleep"), action: #selector(pickLockSleep), keyEquivalent: "")
+        lockSleepItem = NSMenuItem(title: t("menu.lockSleep"), action: #selector(pickLockSleep), keyEquivalent: "")
         lockSleepItem.target = self
         lockSleepItem.image = icon("powersleep")
         menu.addItem(lockSleepItem)
 
-        // —— 定时锁屏 ——
-        menu.addItem(.sectionHeader(title: t("定时锁屏", "Timed Lock")))
+        // —— Timed Lock ——
+        menu.addItem(.sectionHeader(title: t("section.timedLock")))
         tlItem = NSMenuItem(title: tlLabel(), action: #selector(toggleTimedLock), keyEquivalent: "")
         tlItem.target = self
         tlItem.image = icon("lock.rotation")
         menu.addItem(tlItem)
 
-        // —— 语言 ——
+        // —— Language ——
         menu.addItem(.separator())
-        let langItem = NSMenuItem(title: t("语言", "Language"), action: nil, keyEquivalent: "")
+        let langItem = NSMenuItem(title: t("menu.language"), action: nil, keyEquivalent: "")
         langItem.image = icon("globe")
         let langMenu = NSMenu()
-        let zhItem = NSMenuItem(title: "中文", action: #selector(pickLangZh), keyEquivalent: "")
-        zhItem.target = self
-        zhItem.state = (lang == .zh) ? .on : .off
-        langMenu.addItem(zhItem)
-        let enItem = NSMenuItem(title: "English", action: #selector(pickLangEn), keyEquivalent: "")
-        enItem.target = self
-        enItem.state = (lang == .en) ? .on : .off
-        langMenu.addItem(enItem)
+        for l in Lang.allCases {
+            let item = NSMenuItem(title: l.nativeName, action: #selector(pickLang(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = l.rawValue
+            item.state = (lang == l) ? .on : .off
+            langMenu.addItem(item)
+        }
         langItem.submenu = langMenu
         menu.addItem(langItem)
 
-        // —— 开机自启(以 .app 运行时显示;install.sh 与 DMG 均安装为 .app,仅 run.sh 裸二进制开发模式隐藏)——
+        // —— Launch at Login (shown when running as .app; both install.sh and the DMG
+        //    install an .app — only run.sh's bare-binary dev mode hides it) ——
         if isAppBundle {
-            launchItem = NSMenuItem(title: t("开机自启", "Launch at Login"),
+            launchItem = NSMenuItem(title: t("menu.launchAtLogin"),
                                     action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
             launchItem.target = self
             launchItem.image = icon("power.circle")
             menu.addItem(launchItem)
         }
 
-        // —— 退出 ——
-        let quit = NSMenuItem(title: t("退出", "Quit"), action: #selector(quit), keyEquivalent: "q")
+        // —— Quit ——
+        let quit = NSMenuItem(title: t("menu.quit"), action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         quit.image = icon("power")
         menu.addItem(quit)
@@ -207,7 +469,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lockOnlyItem.state = (endAction == .lockOnly) ? .on : .off
         lockOffItem.state = (endAction == .lockOff) ? .on : .off
         lockSleepItem.state = (endAction == .lockSleep) ? .on : .off
-        if tlItem != nil {                       // 剩余时间只在打开菜单时计算,平时不刷新(省电)
+        if tlItem != nil {                       // remaining time is computed only when the menu opens (saves power)
             tlItem.title = tlLabel()
             tlItem.state = tlActive ? .on : .off
         }
@@ -216,19 +478,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    // MARK: - 屏幕关闭时间动作
+    // MARK: - Screen-off timer actions
 
     @objc private func pickPreset(_ sender: NSMenuItem) {
-        if activeMinutes == sender.tag { goIdle() }      // 再次点击 = 取消
+        if activeMinutes == sender.tag { goIdle() }      // clicking again = cancel
         else { startTimed(minutes: sender.tag) }
     }
 
     @objc private func pickCustom() {
-        if isCustomActive() { goIdle(); return }   // 倒计时中再点 = 取消
-        promptCustom()                             // 空闲 = 弹输入框(预填上次值,回车确认)
+        if isCustomActive() { goIdle(); return }   // clicking mid-countdown = cancel
+        promptCustom()                             // idle = show input dialog (pre-filled, Return confirms)
     }
 
-    // 当前是否正以「自定义时长」倒计时(区别于预设和永不)
+    // Whether a "custom duration" countdown is running (as opposed to a preset or never)
     private func isCustomActive() -> Bool {
         guard let m = activeMinutes, m != -1 else { return false }
         return !presets.contains(m)
@@ -237,16 +499,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func promptCustom() {
         let alert = NSAlert()
         alert.icon = NSImage(systemSymbolName: "clock", accessibilityDescription: nil)
-        alert.messageText = t("自定义屏幕关闭时间", "Custom Screen-Off Time")
-        alert.informativeText = t("输入分钟数,回车确认:", "Enter minutes, press Return:")
-        alert.addButton(withTitle: t("开始", "Start"))
-        alert.addButton(withTitle: t("取消", "Cancel"))
+        alert.messageText = t("custom.title")
+        alert.informativeText = t("custom.prompt")
+        alert.addButton(withTitle: t("btn.start"))
+        alert.addButton(withTitle: t("btn.cancel"))
 
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 26))
         field.alignment = .center
         field.font = .systemFont(ofSize: 15)
-        field.placeholderString = t("分钟,例如 45", "minutes, e.g. 45")
-        if customMinutes > 0 { field.stringValue = "\(customMinutes)" }  // 预填上次的值
+        field.placeholderString = t("custom.placeholder")
+        if customMinutes > 0 { field.stringValue = "\(customMinutes)" }  // pre-fill the last value
         let fmt = NumberFormatter()
         fmt.numberStyle = .none
         fmt.minimum = 1
@@ -256,11 +518,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.accessoryView = field
 
         NSApp.activate(ignoringOtherApps: true)
-        alert.window.initialFirstResponder = field   // 弹出即可直接输入
+        alert.window.initialFirstResponder = field   // ready for typing as soon as it appears
         if alert.runModal() == .alertFirstButtonReturn {
             if let mins = Int(field.stringValue.trimmingCharacters(in: .whitespaces)), mins > 0 {
                 customMinutes = mins
-                UserDefaults.standard.set(mins, forKey: "customMinutes")  // 记住
+                UserDefaults.standard.set(mins, forKey: "customMinutes")  // remember
                 startTimed(minutes: mins)
             }
         }
@@ -270,7 +532,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if activeMinutes == -1 { goIdle() } else { startForever() }
     }
 
-    // MARK: - 到时间后(偏好)
+    // MARK: - When Time's Up (preference)
 
     @objc private func pickLockOnly()  { setEndAction(.lockOnly) }
     @objc private func pickLockOff()   { setEndAction(.lockOff) }
@@ -282,30 +544,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateChecks()
     }
 
-    // MARK: - 语言
+    // MARK: - Language
 
-    @objc private func pickLangZh() { setLang(.zh) }
-    @objc private func pickLangEn() { setLang(.en) }
+    @objc private func pickLang(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let l = Lang(rawValue: raw) else { return }
+        setLang(l)
+    }
 
     private func setLang(_ l: Lang) {
         guard l != lang else { return }
         lang = l
         UserDefaults.standard.set(l.rawValue, forKey: "lang")
-        buildMenu()    // 整菜单按新语言重建
+        buildMenu()    // rebuild the whole menu in the new language
         refreshUI()
     }
 
     @objc private func quit() { killTask(); NSApp.terminate(nil) }
 
-    // MARK: - caffeinate 控制
+    // MARK: - caffeinate control
 
     private func startTimed(minutes: Int) {
-        stopTimedLock()   // 与定时锁屏互斥(一个保持常亮,一个空闲即锁,语义相反)
+        stopTimedLock()   // mutually exclusive with Timed Lock (one keeps awake, the other locks on idle)
         killTask()
         let seconds = minutes * 60
         let p = makeCaffeinate(args: ["-dis", "-t", "\(seconds)"]) { [weak self] proc in
             guard let self = self, self.task === proc else { return }
-            self.performEndAction()         // 到点执行动作
+            self.performEndAction()         // run the action when time is up
             self.goIdle()
         }
         if launch(p) {
@@ -318,9 +583,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func startForever() {
-        stopTimedLock()   // 与定时锁屏互斥
+        stopTimedLock()   // mutually exclusive with Timed Lock
         killTask()
-        let p = makeCaffeinate(args: ["-dis"]) { _ in }   // 无 -t,常亮直到取消
+        let p = makeCaffeinate(args: ["-dis"]) { _ in }   // no -t: stay awake until cancelled
         if launch(p) {
             task = p
             activeMinutes = -1
@@ -350,13 +615,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do { try p.run(); return true } catch { return false }
     }
 
-    // 手动结束当前进程:先摘掉 handler,避免触发到点动作
+    // End the current process manually: detach the handler first so the end action doesn't fire
     private func killTask() {
         if let t = task { t.terminationHandler = nil; t.terminate() }
         task = nil
     }
 
-    // MARK: - 到点动作
+    // MARK: - End-of-countdown actions
 
     private func performEndAction() {
         switch endAction {
@@ -385,13 +650,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         try? p.run()
     }
 
-    // MARK: - 倒计时 / 图标
+    // MARK: - Countdown / icon
 
-    // 缓存的菜单栏图标:避免倒计时时每秒重建 NSImage
+    // Cached menu-bar icons: avoid rebuilding NSImage every second during a countdown
     private lazy var idleIcon: NSImage?   = makeIcon("moon.zzz")
     private lazy var activeIcon: NSImage? = makeIcon("display")
     private lazy var tlIcon: NSImage?     = makeIcon("lock.rotation")
-    private var iconState: Int?           // 0 空闲 / 1 常亮 / 2 定时锁屏;避免重复赋值
+    private var iconState: Int?           // 0 idle / 1 awake / 2 timed lock; avoids redundant assignment
 
     private func makeIcon(_ name: String) -> NSImage? {
         let cfg = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
@@ -401,7 +666,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func startTicker() {
         stopTicker()
-        // 每秒只刷新文字标题;tolerance 让系统合并唤醒、尽量待在低功耗态
+        // Refresh only the text title once per second; tolerance lets the system
+        // coalesce wake-ups and stay in low-power states
         let t = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in self?.updateTitle() }
         t.tolerance = 0.2
         RunLoop.main.add(t, forMode: .common)
@@ -410,12 +676,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func stopTicker() { ticker?.invalidate(); ticker = nil }
 
-    // 完整刷新:仅在状态变化时调用(切换图标 + 更新标题)
+    // Full refresh: called only on state changes (swap icon + update title)
     private func refreshUI() {
         guard let button = statusItem.button else { return }
-        // 图标优先级:常亮 > 定时锁屏 > 空闲
+        // Icon priority: awake > timed lock > idle
         let state = (activeMinutes != nil) ? 1 : (tlActive ? 2 : 0)
-        if iconState != state {                   // 仅在状态切换时才换图标
+        if iconState != state {                   // swap the icon only when the state changes
             switch state {
             case 1:  button.image = activeIcon
             case 2:  button.image = tlIcon
@@ -427,7 +693,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateTitle()
     }
 
-    // 轻量刷新:倒计时每秒只更新标题字符串,无任何对象分配
+    // Light refresh: during a countdown only the title string updates each second, zero allocations
     private func updateTitle() {
         guard let button = statusItem.button else { return }
         if let end = endDate {
@@ -446,20 +712,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                      : String(format: "%d:%02d", m, sec)
     }
 
-    // MARK: - 定时锁屏
+    // MARK: - Timed Lock
 
-    // 菜单项标题:激活时显示「每 N 分钟 · 剩 H:MM:SS」,否则显示上次设置/默认提示
+    // Menu item title: when active, "every N min · H:MM:SS left"; otherwise the last settings / default hint
     private func tlLabel() -> String {
         if tlActive, let end = tlWindowEnd {
             let left = format(max(0, Int(end.timeIntervalSinceNow)))
-            return lang == .zh ? "定时锁屏:每 \(tlInterval) 分 · 剩 \(left)"
-                               : "Timed Lock: every \(tlInterval)m · \(left) left"
+            return String(format: t("tl.activeFmt"), tlInterval, left)
         }
         if tlInterval > 0 && tlWindowMin > 0 {
-            return lang == .zh ? "定时锁屏 (\(tlInterval) 分 / \(durationTitle(tlWindowMin)))…"
-                               : "Timed Lock (\(tlInterval)m / \(durationTitle(tlWindowMin)))…"
+            return String(format: t("tl.savedFmt"), tlInterval, durationTitle(tlWindowMin))
         }
-        return t("定时锁屏…", "Timed Lock…")
+        return t("tl.ellipsis")
     }
 
     @objc private func toggleTimedLock() {
@@ -469,15 +733,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func promptTimedLock() {
         let alert = NSAlert()
         alert.icon = NSImage(systemSymbolName: "lock.rotation", accessibilityDescription: nil)
-        alert.messageText = t("定时锁屏", "Timed Lock")
-        alert.informativeText = t("锁屏、解锁都不会影响「持续」倒计时。",
-                                  "Locking or unlocking won't affect the countdown.")
-        alert.addButton(withTitle: t("开始", "Start"))
-        alert.addButton(withTitle: t("取消", "Cancel"))
+        alert.messageText = t("section.timedLock")
+        alert.informativeText = t("tl.note")
+        alert.addButton(withTitle: t("btn.start"))
+        alert.addButton(withTitle: t("btn.cancel"))
 
-        // 两行「短句 + 内嵌数字」:无操作 [5] 分钟即锁屏 / 持续 [120] 分钟后自动停止
-        let leadW: CGFloat = 78, fieldX: CGFloat = 84, fieldW: CGFloat = 56, tailX: CGFloat = 146
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 78))
+        // Two rows of "short sentence + inline number":
+        // "Lock after [5] min idle" / "Run for [120] min, then stop"
+        let leadW: CGFloat = 100, fieldX: CGFloat = 106, fieldW: CGFloat = 56, tailX: CGFloat = 168
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 330, height: 78))
         func text(_ s: String, x: CGFloat, y: CGFloat, w: CGFloat, _ align: NSTextAlignment) -> NSTextField {
             let l = NSTextField(labelWithString: s)
             l.frame = NSRect(x: x, y: y, width: w, height: 22)
@@ -497,14 +761,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let intervalField = field(y: 44, tlInterval, "5")
         let windowField   = field(y: 8,  tlWindowMin, "120")
-        // 第 1 行:无操作 [5] 分钟即锁屏
-        container.addSubview(text(t("无操作", "Lock after"), x: 0, y: 44, w: leadW, .right))
+        // Row 1: lock after [5] min idle
+        container.addSubview(text(t("tl.lockAfter"), x: 0, y: 44, w: leadW, .right))
         container.addSubview(intervalField)
-        container.addSubview(text(t("分钟即锁屏", "min idle"), x: tailX, y: 44, w: 300 - tailX, .left))
-        // 第 2 行:持续 [120] 分钟后自动停止
-        container.addSubview(text(t("持续", "Run for"), x: 0, y: 8, w: leadW, .right))
+        container.addSubview(text(t("tl.minIdle"), x: tailX, y: 44, w: 330 - tailX, .left))
+        // Row 2: run for [120] min, then stop
+        container.addSubview(text(t("tl.runFor"), x: 0, y: 8, w: leadW, .right))
         container.addSubview(windowField)
-        container.addSubview(text(t("分钟后自动停止", "min, then stop"), x: tailX, y: 8, w: 300 - tailX, .left))
+        container.addSubview(text(t("tl.thenStop"), x: tailX, y: 8, w: 330 - tailX, .left))
         intervalField.nextKeyView = windowField
         alert.accessoryView = container
 
@@ -514,12 +778,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let iv = Int(intervalField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
             let wv = Int(windowField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
             guard iv > 0, wv > 0 else { return }
-            startTimedLock(interval: iv, window: max(wv, iv))  // 持续时长至少容纳一个间隔
+            startTimedLock(interval: iv, window: max(wv, iv))  // window must fit at least one interval
         }
     }
 
     private func startTimedLock(interval: Int, window: Int) {
-        stopCaffeinateIfRunning()          // 停掉 caffeinate(互斥)
+        stopCaffeinateIfRunning()          // stop caffeinate (mutually exclusive)
         tlInterval  = interval
         tlWindowMin = window
         UserDefaults.standard.set(interval, forKey: "tlInterval")
@@ -536,12 +800,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         RunLoop.main.add(wt, forMode: .common)
         tlWindowTimer = wt
 
-        // 刚点过菜单 = 有输入,idle≈0,先安排一个完整间隔后检查
+        // The menu was just clicked = there was input, idle ≈ 0,
+        // so schedule the first check a full interval from now
         scheduleIdleCheck(after: TimeInterval(interval * 60))
         refreshUI(); updateChecks()
     }
 
-    // 仅停掉 caffeinate 常亮进程(不影响定时锁屏自身状态)
+    // Stop only the caffeinate keep-awake process (doesn't touch Timed Lock state)
     private func stopCaffeinateIfRunning() {
         if activeMinutes != nil { goIdle() }
     }
@@ -555,7 +820,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshUI(); updateChecks()
     }
 
-    // 自适应调度:把下次检查安排在 seconds 之后(不超过窗口剩余),用宽松容差让系统合并唤醒
+    // Adaptive scheduling: run the next check `seconds` from now (capped at the window's
+    // remaining time), with a loose tolerance so the system can coalesce wake-ups
     private func scheduleIdleCheck(after seconds: TimeInterval) {
         tlTimer?.invalidate(); tlTimer = nil
         guard tlActive, let end = tlWindowEnd else { return }
@@ -575,21 +841,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let intervalSec = TimeInterval(tlInterval * 60)
         if idle >= intervalSec {
             lockScreen()
-            // 已锁屏:停掉检查,等 screenIsUnlocked 通知再重新武装(期间零轮询)
+            // Screen is locked: stop checking and wait for screenIsUnlocked to
+            // re-arm (zero polling in the meantime)
             tlTimer?.invalidate(); tlTimer = nil
         } else {
-            scheduleIdleCheck(after: intervalSec - idle)   // 距最早可触发还差这么多
+            scheduleIdleCheck(after: intervalSec - idle)   // time left until the earliest possible trigger
         }
     }
 
-    // 只读查询系统空闲秒数(自上次键鼠输入),无需任何权限
+    // Read-only query of system idle seconds (since the last keyboard/mouse input); needs no permissions
     private func systemIdleSeconds() -> TimeInterval {
         CGEventSource.secondsSinceLastEventType(.combinedSessionState,
                                                 eventType: CGEventType(rawValue: ~0)!)
     }
 
     @objc private func screenDidLock() {
-        // 进入锁定(无论自动还是手动):空闲检查无意义,停掉,等解锁
+        // Locked (whether automatic or manual): idle checks are pointless, stop and wait for unlock
         guard tlActive else { return }
         tlTimer?.invalidate(); tlTimer = nil
     }
@@ -597,12 +864,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func screenDidUnlock() {
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
-        scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle 刚归零,重新武装
+        scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle just reset to zero, re-arm
     }
 
-    // MARK: - 开机自启 (SMAppService;仅对 .app 包生效,无需权限)
+    // MARK: - Launch at Login (SMAppService; .app bundles only, no permissions needed)
 
-    // 是否以 .app 包形式运行(DMG 安装),而非裸可执行文件(run.sh / install.sh)
+    // Whether we're running as an .app bundle (install.sh / DMG) rather than
+    // a bare executable (run.sh dev mode)
     private var isAppBundle: Bool {
         Bundle.main.bundleURL.pathExtension == "app"
     }
@@ -621,11 +889,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             let alert = NSAlert()
             alert.icon = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
-            alert.messageText = t("无法设置开机自启", "Couldn't set Launch at Login")
-            alert.informativeText = t(
-                "请将 SleepBar.app 移动到「应用程序」文件夹后再试。",
-                "Move SleepBar.app to your Applications folder and try again.")
-            alert.addButton(withTitle: t("好", "OK"))
+            alert.messageText = t("login.errTitle")
+            alert.informativeText = t("login.errMsg")
+            alert.addButton(withTitle: t("btn.ok"))
             NSApp.activate(ignoringOtherApps: true)
             alert.runModal()
         }
@@ -633,7 +899,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 }
 
-// uninstall.sh 调用:仅注销「登录项」后退出,不启动 UI(须在删除 .app 前执行)
+// Called by uninstall.sh: just unregister the Login Item and exit without
+// starting the UI (must run before the .app is deleted)
 if CommandLine.arguments.contains("--unregister-login") {
     if #available(macOS 13.0, *) { try? SMAppService.mainApp.unregister() }
     exit(0)

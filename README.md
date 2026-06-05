@@ -34,7 +34,7 @@ Before going to sleep you often want to leave your Mac running for a little long
 - ♾️ **Keep awake forever (Never)** — one click to keep the screen on indefinitely; great for long tasks, presentations, or watching videos.
 - 🔁 **Timed Lock** — *“lock after **5 min** idle, for the next **2 hours**.”* Two numbers, one sentence: how long of no input triggers a lock, and how long the whole thing runs. SleepBar then auto-locks every time you've been idle that long, re-arming after each unlock, until the time's up. The "run for" duration is a fixed countdown — locking or unlocking never resets it. **No permissions required** (reads system idle time only, never intercepts input).
 - 🧠 **Remembers your custom duration** — your last value is saved and pre-filled, so your favorite time is one click away.
-- 🌐 **English / Chinese** — switch the entire menu instantly; follows your system language on first launch.
+- 🌐 **7 languages** — English, 中文, Español, العربية, Português (Brasil), 日本語, Deutsch. Switch the entire menu instantly; follows your system language on first launch.
 - 🪶 **Extremely lightweight** — a single Swift file, zero dependencies, no background service. **~0% CPU when idle.**
 
 ## 📸 Screenshots
@@ -98,7 +98,7 @@ Click the 💤 icon in the menu bar:
 | | Lock & Turn Off Display | Lock + power down the display |
 | | Lock, Off & Sleep | Lock + put the Mac to sleep |
 | **Timed Lock** | Timed Lock… | A two-line dialog: **"Lock after `[N]` min idle"** and **"Run for `[M]` min, then stop."** Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Both values are remembered & pre-filled |
-| **Language** | 中文 / English | Switch the whole menu instantly |
+| **Language** | English · 中文 · Español · العربية · Português (Brasil) · 日本語 · Deutsch | Switch the whole menu instantly |
 | **Launch at Login** | toggle | Auto-start when you log in (a standard macOS Login Item). `install.sh` turns it **on** by default — uncheck here to disable |
 | **Quit** | | Quit SleepBar |
 
