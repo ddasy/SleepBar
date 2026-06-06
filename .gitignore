@@ -10,3 +10,6 @@ build/
 # Finder 自定义图标残留文件(手动粘贴图标时产生)
 Icon
 Icon?
+
+# Claude Code 项目记忆(仅本地使用,不入库)
+CLAUDE.md
