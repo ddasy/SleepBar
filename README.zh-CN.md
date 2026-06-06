@@ -40,9 +40,9 @@
 
 ## 📸 截图
 
-| 中文界面 | English | 倒计时中 |
-|:---:|:---:|:---:|
-| ![SleepBar 中文菜单栏屏幕关闭定时器](screenshots/zh.png) | ![SleepBar English menu bar timer](screenshots/en.png) | ![SleepBar 菜单栏实时倒计时](screenshots/countdown.png) |
+| 中文界面 | English |
+|:---:|:---:|
+| ![SleepBar 中文菜单栏屏幕关闭定时器演示](screenshots/CN.gif) | ![SleepBar English menu bar auto lock and sleep timer demo](screenshots/English.gif) |
 
 ## 🚀 安装
 
