@@ -28,6 +28,7 @@ Before going to sleep you often want to leave your Mac running for a little long
 ## ✨ Features
 
 - ⏱️ **Countdown screen-off** — presets of 5 / 10 / 15 / 30 min, 1 hour, or **any custom duration**. The remaining time ticks live in the menu bar.
+- ⚡ **Now** — skip the countdown and run your chosen action (lock / turn off display / sleep) immediately, in one click.
 - 🔒 **Lock screen** — lock to the login window when time's up.
 - 🖥️ **Turn off display** — lock *and* power down the display to save energy.
 - 💤 **Sleep** — put the whole Mac to sleep when the timer ends.
@@ -91,7 +92,8 @@ Click the 💤 icon in the menu bar:
 
 | Section | Option | What it does |
 |---|---|---|
-| **Screen Off Timer** | 5 / 10 / 15 / 30 min, 1 hour | Starts a countdown; **click again to cancel** |
+| **Screen Off Timer** | Now | Run the "When Time's Up" action **immediately**, no countdown |
+| | 5 / 10 / 15 / 30 min, 1 hour | Starts a countdown; **click again to cancel** |
 | | Custom… | Enter any number of minutes; **remembered & pre-filled** next time |
 | | Never | Keep the screen on forever (menu bar shows `∞`) |
 | **When Time's Up** | Lock Screen | Lock only |

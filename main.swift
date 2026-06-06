@@ -48,6 +48,7 @@ enum Lang: String, CaseIterable {
 private let l10n: [Lang: [String: String]] = [
     .zh: [
         "section.screenOff":   "屏幕关闭时间",
+        "menu.now":            "立即",
         "menu.custom":         "自定义时长…",
         "menu.customFmt":      "自定义 (%@)",
         "menu.never":          "永不",
@@ -81,6 +82,7 @@ private let l10n: [Lang: [String: String]] = [
     ],
     .en: [
         "section.screenOff":   "Screen Off Timer",
+        "menu.now":            "Now",
         "menu.custom":         "Custom…",
         "menu.customFmt":      "Custom (%@)",
         "menu.never":          "Never",
@@ -114,6 +116,7 @@ private let l10n: [Lang: [String: String]] = [
     ],
     .es: [
         "section.screenOff":   "Temporizador de pantalla",
+        "menu.now":            "Ahora",
         "menu.custom":         "Personalizado…",
         "menu.customFmt":      "Personalizado (%@)",
         "menu.never":          "Nunca",
@@ -147,6 +150,7 @@ private let l10n: [Lang: [String: String]] = [
     ],
     .ar: [
         "section.screenOff":   "مؤقّت إطفاء الشاشة",
+        "menu.now":            "الآن",
         "menu.custom":         "مخصّص…",
         "menu.customFmt":      "مخصّص (%@)",
         "menu.never":          "أبدًا",
@@ -180,6 +184,7 @@ private let l10n: [Lang: [String: String]] = [
     ],
     .pt: [
         "section.screenOff":   "Temporizador de tela",
+        "menu.now":            "Agora",
         "menu.custom":         "Personalizado…",
         "menu.customFmt":      "Personalizado (%@)",
         "menu.never":          "Nunca",
@@ -213,6 +218,7 @@ private let l10n: [Lang: [String: String]] = [
     ],
     .ja: [
         "section.screenOff":   "画面オフタイマー",
+        "menu.now":            "今すぐ",
         "menu.custom":         "カスタム…",
         "menu.customFmt":      "カスタム (%@)",
         "menu.never":          "オフにしない",
@@ -246,6 +252,7 @@ private let l10n: [Lang: [String: String]] = [
     ],
     .de: [
         "section.screenOff":   "Bildschirm-Timer",
+        "menu.now":            "Jetzt",
         "menu.custom":         "Eigene Dauer…",
         "menu.customFmt":      "Eigene Dauer (%@)",
         "menu.never":          "Nie",
@@ -381,6 +388,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // —— Screen Off Timer ——
         menu.addItem(.sectionHeader(title: t("section.screenOff")))
+        let nowItem = NSMenuItem(title: t("menu.now"), action: #selector(pickNow), keyEquivalent: "")
+        nowItem.target = self
+        nowItem.image = icon("bolt")
+        menu.addItem(nowItem)
         for minutes in presets {
             let item = NSMenuItem(title: durationTitle(minutes), action: #selector(pickPreset(_:)), keyEquivalent: "")
             item.target = self
@@ -479,6 +490,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     // MARK: - Screen-off timer actions
+
+    // "Now": run the configured end action immediately; any running countdown
+    // has served its purpose, so cancel it (Timed Lock keeps running — this is
+    // just like a manual lock, which never affects its window)
+    @objc private func pickNow() {
+        if activeMinutes != nil { goIdle() }
+        performEndAction()
+    }
 
     @objc private func pickPreset(_ sender: NSMenuItem) {
         if activeMinutes == sender.tag { goIdle() }      // clicking again = cancel
