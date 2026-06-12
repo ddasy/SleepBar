@@ -12,9 +12,10 @@ import ServiceManagement
 //    lock, turn off & sleep.
 
 enum EndAction: String {
-    case lockOnly  = "lockOnly"   // lock the screen
-    case lockOff   = "lockOff"    // lock & turn off the display
-    case lockSleep = "lockSleep"  // lock, turn off & sleep
+    case lockOnly        = "lockOnly"        // lock the screen
+    case lockOff         = "lockOff"         // lock & turn off the display
+    case lockSleep       = "lockSleep"       // lock, turn off & sleep
+    case lockOffNoSleep  = "lockOffNoSleep"  // lock & turn off the display but keep the system awake
 }
 
 enum Lang: String, CaseIterable {
@@ -56,6 +57,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOnly":       "锁定屏幕",
         "menu.lockOff":        "锁定并熄屏",
         "menu.lockSleep":      "锁定、熄屏并休眠",
+        "menu.lockOffNoSleep": "锁定、熄屏且不休眠",
         "section.timedLock":   "定时锁屏",
         "menu.language":       "语言",
         "menu.launchAtLogin":  "开机自启",
@@ -90,6 +92,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOnly":       "Lock Screen",
         "menu.lockOff":        "Lock & Turn Off Display",
         "menu.lockSleep":      "Lock, Off & Sleep",
+        "menu.lockOffNoSleep": "Lock, Off & Stay Awake",
         "section.timedLock":   "Timed Lock",
         "menu.language":       "Language",
         "menu.launchAtLogin":  "Launch at Login",
@@ -124,6 +127,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOnly":       "Bloquear pantalla",
         "menu.lockOff":        "Bloquear y apagar pantalla",
         "menu.lockSleep":      "Bloquear, apagar y suspender",
+        "menu.lockOffNoSleep": "Bloquear, apagar, sin suspender",
         "section.timedLock":   "Bloqueo programado",
         "menu.language":       "Idioma",
         "menu.launchAtLogin":  "Abrir al iniciar sesión",
@@ -158,6 +162,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOnly":       "قفل الشاشة",
         "menu.lockOff":        "قفل وإطفاء الشاشة",
         "menu.lockSleep":      "قفل وإطفاء وسبات",
+        "menu.lockOffNoSleep": "قفل وإطفاء دون سبات",
         "section.timedLock":   "قفل دوري",
         "menu.language":       "اللغة",
         "menu.launchAtLogin":  "الفتح عند تسجيل الدخول",
@@ -192,6 +197,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOnly":       "Bloquear tela",
         "menu.lockOff":        "Bloquear e desligar a tela",
         "menu.lockSleep":      "Bloquear, desligar e suspender",
+        "menu.lockOffNoSleep": "Bloquear, desligar, sem suspender",
         "section.timedLock":   "Bloqueio programado",
         "menu.language":       "Idioma",
         "menu.launchAtLogin":  "Abrir ao fazer login",
@@ -226,6 +232,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOnly":       "画面をロック",
         "menu.lockOff":        "ロックして画面をオフ",
         "menu.lockSleep":      "ロック・オフしてスリープ",
+        "menu.lockOffNoSleep": "ロック・オフ（スリープしない）",
         "section.timedLock":   "定期ロック",
         "menu.language":       "言語",
         "menu.launchAtLogin":  "ログイン時に起動",
@@ -260,6 +267,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOnly":       "Bildschirm sperren",
         "menu.lockOff":        "Sperren und Bildschirm ausschalten",
         "menu.lockSleep":      "Sperren, ausschalten & Ruhezustand",
+        "menu.lockOffNoSleep": "Sperren, ausschalten, wach bleiben",
         "section.timedLock":   "Zeitgesteuerte Sperre",
         "menu.language":       "Sprache",
         "menu.launchAtLogin":  "Bei der Anmeldung öffnen",
@@ -322,6 +330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lockOnlyItem: NSMenuItem!
     private var lockOffItem: NSMenuItem!
     private var lockSleepItem: NSMenuItem!
+    private var lockOffNoSleepItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ note: Notification) {
         if let saved = UserDefaults.standard.string(forKey: "endAction"),
@@ -427,6 +436,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lockSleepItem.image = icon("powersleep")
         menu.addItem(lockSleepItem)
 
+        lockOffNoSleepItem = NSMenuItem(title: t("menu.lockOffNoSleep"), action: #selector(pickLockOffNoSleep), keyEquivalent: "")
+        lockOffNoSleepItem.target = self
+        lockOffNoSleepItem.image = icon("lock.open.display")
+        menu.addItem(lockOffNoSleepItem)
+
         // —— Timed Lock ——
         menu.addItem(.sectionHeader(title: t("section.timedLock")))
         tlItem = NSMenuItem(title: tlLabel(), action: #selector(toggleTimedLock), keyEquivalent: "")
@@ -480,6 +494,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lockOnlyItem.state = (endAction == .lockOnly) ? .on : .off
         lockOffItem.state = (endAction == .lockOff) ? .on : .off
         lockSleepItem.state = (endAction == .lockSleep) ? .on : .off
+        lockOffNoSleepItem.state = (endAction == .lockOffNoSleep) ? .on : .off
         if tlItem != nil {                       // remaining time is computed only when the menu opens (saves power)
             tlItem.title = tlLabel()
             tlItem.state = tlActive ? .on : .off
@@ -553,9 +568,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - When Time's Up (preference)
 
-    @objc private func pickLockOnly()  { setEndAction(.lockOnly) }
-    @objc private func pickLockOff()   { setEndAction(.lockOff) }
-    @objc private func pickLockSleep() { setEndAction(.lockSleep) }
+    @objc private func pickLockOnly()    { setEndAction(.lockOnly) }
+    @objc private func pickLockOff()     { setEndAction(.lockOff) }
+    @objc private func pickLockSleep()   { setEndAction(.lockSleep) }
+    @objc private func pickLockOffNoSleep() { setEndAction(.lockOffNoSleep) }
 
     private func setEndAction(_ a: EndAction) {
         endAction = a
@@ -589,8 +605,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let seconds = minutes * 60
         let p = makeCaffeinate(args: ["-dis", "-t", "\(seconds)"]) { [weak self] proc in
             guard let self = self, self.task === proc else { return }
+            // Reset to idle first (the timer process already ended), then run the
+            // end action — so an action that installs its own task (lockOffNoSleep)
+            // isn't immediately torn down.
+            self.task = nil
+            self.activeMinutes = nil
+            self.endDate = nil
+            self.stopTicker()
             self.performEndAction()         // run the action when time is up
-            self.goIdle()
+            self.refreshUI(); self.updateChecks()
         }
         if launch(p) {
             task = p
@@ -652,6 +675,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .lockSleep:
             lockScreen()
             runPmset("sleepnow")
+        case .lockOffNoSleep:
+            // Lock, turn the display off, but keep the system awake: start a lingering
+            // caffeinate that blocks idle/system sleep (but not display sleep).
+            // Cancelled by killTask() on the next screen-off action or on quit.
+            lockScreen()
+            killTask()
+            runPmset("displaysleepnow")
+            let keep = makeCaffeinate(args: ["-is"]) { _ in }
+            if launch(keep) { task = keep }
         }
     }
 
