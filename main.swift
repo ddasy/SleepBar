@@ -60,6 +60,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOffNoSleep": "锁定、熄屏且不休眠",
         "section.timedLock":   "定时锁屏",
         "menu.language":       "语言",
+        "menu.keepAwake":      "不休眠",
         "menu.launchAtLogin":  "开机自启",
         "menu.quit":           "退出",
         "unit.min":            "%d 分钟",
@@ -95,6 +96,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOffNoSleep": "Lock, Off & Stay Awake",
         "section.timedLock":   "Timed Lock",
         "menu.language":       "Language",
+        "menu.keepAwake":      "Keep Awake",
         "menu.launchAtLogin":  "Launch at Login",
         "menu.quit":           "Quit",
         "unit.min":            "%d min",
@@ -130,6 +132,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOffNoSleep": "Bloquear, apagar, sin suspender",
         "section.timedLock":   "Bloqueo programado",
         "menu.language":       "Idioma",
+        "menu.keepAwake":      "Mantener activo",
         "menu.launchAtLogin":  "Abrir al iniciar sesión",
         "menu.quit":           "Salir",
         "unit.min":            "%d min",
@@ -165,6 +168,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOffNoSleep": "قفل وإطفاء دون سبات",
         "section.timedLock":   "قفل دوري",
         "menu.language":       "اللغة",
+        "menu.keepAwake":      "منع السكون",
         "menu.launchAtLogin":  "الفتح عند تسجيل الدخول",
         "menu.quit":           "إنهاء",
         "unit.min":            "%d دقيقة",
@@ -200,6 +204,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOffNoSleep": "Bloquear, desligar, sem suspender",
         "section.timedLock":   "Bloqueio programado",
         "menu.language":       "Idioma",
+        "menu.keepAwake":      "Manter ativo",
         "menu.launchAtLogin":  "Abrir ao fazer login",
         "menu.quit":           "Encerrar",
         "unit.min":            "%d min",
@@ -235,6 +240,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOffNoSleep": "ロック・オフ（スリープしない）",
         "section.timedLock":   "定期ロック",
         "menu.language":       "言語",
+        "menu.keepAwake":      "スリープしない",
         "menu.launchAtLogin":  "ログイン時に起動",
         "menu.quit":           "終了",
         "unit.min":            "%d 分",
@@ -270,6 +276,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOffNoSleep": "Sperren, ausschalten, wach bleiben",
         "section.timedLock":   "Zeitgesteuerte Sperre",
         "menu.language":       "Sprache",
+        "menu.keepAwake":      "Wach bleiben",
         "menu.launchAtLogin":  "Bei der Anmeldung öffnen",
         "menu.quit":           "Beenden",
         "unit.min":            "%d Min.",
@@ -320,6 +327,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var tlItem: NSMenuItem!
     private var launchItem: NSMenuItem!   // "Launch at Login" toggle (.app builds only)
 
+    // —— Keep Awake ——
+    // An always-on toggle (no trigger logic): while checked, a standalone caffeinate
+    // process blocks idle/system sleep (but not display sleep). Independent of the
+    // Screen Off Timer; persists across launches.
+    private var keepAwake = false
+    private var keepAwakeTask: Process?
+    private var keepAwakeItem: NSMenuItem!
+
     // Preset durations (minutes); titles are generated per language
     private let presets: [Int] = [5, 10, 15, 30, 60]
 
@@ -344,6 +359,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         tlInterval  = UserDefaults.standard.integer(forKey: "tlInterval")
         tlWindowMin = UserDefaults.standard.integer(forKey: "tlWindowMin")
+        keepAwake   = UserDefaults.standard.bool(forKey: "keepAwake")
 
         // Observe lock/unlock (event-driven; zero polling while locked)
         let dc = DistributedNotificationCenter.default()
@@ -362,6 +378,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         buildMenu()
         refreshUI()
+        if keepAwake { startKeepAwake() }   // restore the always-on keep-awake assertion
     }
 
     // MARK: - Localization
@@ -463,6 +480,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         langItem.submenu = langMenu
         menu.addItem(langItem)
 
+        // —— Keep Awake (always-on toggle; no trigger logic) ——
+        keepAwakeItem = NSMenuItem(title: t("menu.keepAwake"),
+                                   action: #selector(toggleKeepAwake), keyEquivalent: "")
+        keepAwakeItem.target = self
+        keepAwakeItem.image = icon("cup.and.saucer")
+        menu.addItem(keepAwakeItem)
+
         // —— Launch at Login (shown when running as .app; both install.sh and the DMG
         //    install an .app — only run.sh's bare-binary dev mode hides it) ——
         if isAppBundle {
@@ -498,6 +522,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if tlItem != nil {                       // remaining time is computed only when the menu opens (saves power)
             tlItem.title = tlLabel()
             tlItem.state = tlActive ? .on : .off
+        }
+        if keepAwakeItem != nil {
+            keepAwakeItem.state = keepAwake ? .on : .off
         }
         if launchItem != nil {
             launchItem.state = launchAtLoginEnabled() ? .on : .off
@@ -595,7 +622,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshUI()
     }
 
-    @objc private func quit() { killTask(); NSApp.terminate(nil) }
+    // MARK: - Keep Awake (always-on, independent of the Screen Off Timer)
+
+    @objc private func toggleKeepAwake() {
+        keepAwake.toggle()
+        UserDefaults.standard.set(keepAwake, forKey: "keepAwake")
+        if keepAwake { startKeepAwake() } else { stopKeepAwake() }
+        updateChecks()
+    }
+
+    private func startKeepAwake() {
+        stopKeepAwake()
+        // -is: block idle/system sleep (but not display sleep), with no -t so it
+        // lasts until the toggle is switched off or the app quits.
+        let p = makeCaffeinate(args: ["-is"]) { _ in }
+        if launch(p) { keepAwakeTask = p }
+    }
+
+    private func stopKeepAwake() {
+        if let p = keepAwakeTask { p.terminationHandler = nil; p.terminate() }
+        keepAwakeTask = nil
+    }
+
+    @objc private func quit() { killTask(); stopKeepAwake(); NSApp.terminate(nil) }
 
     // MARK: - caffeinate control
 
