@@ -309,6 +309,12 @@ private let l10n: [Lang: [String: String]] = [
     ],
 ]
 
+// Built-in keyboard backlight control via CoreBrightness's private KeyboardBrightnessClient.
+@objc private protocol KeyboardBacklight {
+    func brightnessForKeyboard(_ keyboard: Int64) -> Float
+    func setBrightness(_ brightness: Float, forKeyboard keyboard: Int64) -> Bool
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var statusItem: NSStatusItem!
@@ -349,6 +355,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var savedBrightness: [CGDirectDisplayID: Float] = [:]
     private var screenOffMonitor: Any?            // global mouse monitor: restore on user return
     private var screenOffActive = false
+
+    // Keyboard backlight (built-in keyboard = id 1). The client is held for the app's
+    // lifetime so the level we set actually sticks. savedKeyboardBrightness = pre-dim level.
+    private let keyboardID: Int64 = 1
+    private lazy var keyboardClientObj: NSObject? = {
+        guard dlopen("/System/Library/PrivateFrameworks/CoreBrightness.framework/CoreBrightness", RTLD_NOW) != nil,
+              let cls = NSClassFromString("KeyboardBrightnessClient") as? NSObject.Type else { return nil }
+        return cls.init()
+    }()
+    private var keyboardBacklight: KeyboardBacklight? { keyboardClientObj.map { unsafeBitCast($0, to: KeyboardBacklight.self) } }
+    private var savedKeyboardBrightness: Float?
 
     // Preset durations (minutes); titles are generated per language
     private let presets: [Int] = [5, 10, 15, 30, 60]
@@ -758,15 +775,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let keep = makeCaffeinate(args: ["-is"]) { _ in }
             if launch(keep) { task = keep }
         case .screenOff:
-            // "Screen off" (no lock): built-in brightness → 0 and external display → DDC
-            // power-off — both a true black that, unlike display sleep, keeps the GPU
-            // rendering (the built-in stays on at brightness 0 as the GPU's wake anchor).
-            // Keep the system awake (caffeinate -dis). A lightweight idle watcher restores
-            // brightness and re-lights the external the moment the user returns.
+            // "Screen off" (no lock): built-in brightness → 0, external display → DDC
+            // power-off, and keyboard backlight → 0 — all a true black that, unlike display
+            // sleep, keeps the GPU rendering (the built-in stays on at brightness 0 as the
+            // GPU's wake anchor). Keep the system awake (caffeinate -dis). The watcher
+            // restores brightness + keyboard and re-lights the external when the user returns.
             killTask()
             stopScreenOffWatch()
             dimBuiltInToZero()
             externalDisplayOff()
+            dimKeyboardToZero()
             let keep = makeCaffeinate(args: ["-dis"]) { _ in }
             if launch(keep) { task = keep }
             startScreenOffWatch()
@@ -828,6 +846,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         savedBrightness.removeAll()
     }
 
+    // Save the keyboard backlight level and turn it off. Re-entry keeps the first saved value.
+    private func dimKeyboardToZero() {
+        guard let kb = keyboardBacklight else { return }
+        let cur = kb.brightnessForKeyboard(keyboardID)
+        guard cur >= 0 else { return }                 // no controllable backlight on this machine
+        if savedKeyboardBrightness == nil { savedKeyboardBrightness = cur }
+        _ = kb.setBrightness(0, forKeyboard: keyboardID)
+    }
+
+    private func restoreKeyboardBrightness() {
+        guard let kb = keyboardBacklight, let saved = savedKeyboardBrightness else { return }
+        _ = kb.setBrightness(saved, forKeyboard: keyboardID)
+        savedKeyboardBrightness = nil
+    }
+
     // After "息屏", restore the moment the user comes back. A short grace period skips the
     // input that triggered the action (and any immediate residual); then a global event
     // monitor fires on the first real mouse input. Event-driven, so the intermittent activity
@@ -848,11 +881,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let m = screenOffMonitor { NSEvent.removeMonitor(m); screenOffMonitor = nil }
     }
 
-    // User returned: restore built-in brightness, re-light the external display, and drop
-    // the keep-awake caffeinate we started.
+    // User returned: restore built-in brightness + keyboard backlight, re-light the external
+    // display, and drop the keep-awake caffeinate we started.
     private func wakeFromScreenOff() {
         stopScreenOffWatch()
         restoreBrightness()
+        restoreKeyboardBrightness()
         externalDisplayWake()
         killTask()
     }
@@ -899,13 +933,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         externalIsOff = false
         for id in externalDisplays() {
             guard let current = CGDisplayCopyDisplayMode(id),
-                  let modes = CGDisplayCopyAllDisplayModes(id, nil) as? [CGDisplayMode],
-                  let alt = modes.first(where: { $0.width != current.width || $0.height != current.height })
-            else { continue }
+                  let modes = CGDisplayCopyAllDisplayModes(id, nil) as? [CGDisplayMode] else { continue }
+            // Prefer a same-resolution / different-refresh mode: it retrains the DisplayPort
+            // link (waking the panel) without changing resolution, so it's fast and doesn't
+            // reshuffle windows. Fall back to any different mode. Switching straight back with
+            // no delay lets the panel sync just once, directly to the original mode.
+            let alt = modes.first { $0.width == current.width && $0.height == current.height
+                                    && $0.refreshRate != current.refreshRate && $0.refreshRate > 0 }
+                   ?? modes.first { $0.width != current.width || $0.height != current.height }
+            guard let alt = alt else { continue }
             applyDisplayMode(alt, to: id)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
-                self?.applyDisplayMode(current, to: id)
-            }
+            applyDisplayMode(current, to: id)
         }
     }
 
