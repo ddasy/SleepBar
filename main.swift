@@ -16,6 +16,7 @@ enum EndAction: String {
     case lockOff         = "lockOff"         // lock & turn off the display
     case lockSleep       = "lockSleep"       // lock, turn off & sleep
     case lockOffNoSleep  = "lockOffNoSleep"  // lock & turn off the display but keep the system awake
+    case screenOff       = "screenOff"       // dim the built-in display to 0 (no lock), keep awake, auto-restore on return
 }
 
 enum Lang: String, CaseIterable {
@@ -55,9 +56,10 @@ private let l10n: [Lang: [String: String]] = [
         "menu.never":          "永不",
         "section.endAction":   "到时间后",
         "menu.lockOnly":       "锁定屏幕",
-        "menu.lockOff":        "锁定并熄屏",
-        "menu.lockSleep":      "锁定、熄屏并休眠",
-        "menu.lockOffNoSleep": "锁定、熄屏且不休眠",
+        "menu.lockOff":        "锁定并息屏",
+        "menu.lockSleep":      "锁定、息屏并休眠",
+        "menu.lockOffNoSleep": "锁定、息屏且不休眠",
+        "menu.screenOff":      "息屏",
         "section.timedLock":   "定时锁屏",
         "menu.language":       "语言",
         "menu.keepAwake":      "不休眠",
@@ -94,6 +96,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOff":        "Lock & Turn Off Display",
         "menu.lockSleep":      "Lock, Off & Sleep",
         "menu.lockOffNoSleep": "Lock, Off & Stay Awake",
+        "menu.screenOff":      "Screen Off",
         "section.timedLock":   "Timed Lock",
         "menu.language":       "Language",
         "menu.keepAwake":      "Keep Awake",
@@ -130,6 +133,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOff":        "Bloquear y apagar pantalla",
         "menu.lockSleep":      "Bloquear, apagar y suspender",
         "menu.lockOffNoSleep": "Bloquear, apagar, sin suspender",
+        "menu.screenOff":      "Apagar pantalla",
         "section.timedLock":   "Bloqueo programado",
         "menu.language":       "Idioma",
         "menu.keepAwake":      "Mantener activo",
@@ -166,6 +170,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOff":        "قفل وإطفاء الشاشة",
         "menu.lockSleep":      "قفل وإطفاء وسبات",
         "menu.lockOffNoSleep": "قفل وإطفاء دون سبات",
+        "menu.screenOff":      "إطفاء الشاشة",
         "section.timedLock":   "قفل دوري",
         "menu.language":       "اللغة",
         "menu.keepAwake":      "منع السكون",
@@ -202,6 +207,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOff":        "Bloquear e desligar a tela",
         "menu.lockSleep":      "Bloquear, desligar e suspender",
         "menu.lockOffNoSleep": "Bloquear, desligar, sem suspender",
+        "menu.screenOff":      "Desligar a tela",
         "section.timedLock":   "Bloqueio programado",
         "menu.language":       "Idioma",
         "menu.keepAwake":      "Manter ativo",
@@ -238,6 +244,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOff":        "ロックして画面をオフ",
         "menu.lockSleep":      "ロック・オフしてスリープ",
         "menu.lockOffNoSleep": "ロック・オフ（スリープしない）",
+        "menu.screenOff":      "画面オフ",
         "section.timedLock":   "定期ロック",
         "menu.language":       "言語",
         "menu.keepAwake":      "スリープしない",
@@ -274,6 +281,7 @@ private let l10n: [Lang: [String: String]] = [
         "menu.lockOff":        "Sperren und Bildschirm ausschalten",
         "menu.lockSleep":      "Sperren, ausschalten & Ruhezustand",
         "menu.lockOffNoSleep": "Sperren, ausschalten, wach bleiben",
+        "menu.screenOff":      "Bildschirm aus",
         "section.timedLock":   "Zeitgesteuerte Sperre",
         "menu.language":       "Sprache",
         "menu.keepAwake":      "Wach bleiben",
@@ -335,6 +343,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var keepAwakeTask: Process?
     private var keepAwakeItem: NSMenuItem!
 
+    // —— Screen off via brightness (the "息屏" / Screen Off end action) ——
+    // Instead of sleeping the display (which stalls GPU rendering), drop the built-in
+    // display brightness to 0 and keep things awake; the watcher restores it on return.
+    private var savedBrightness: [CGDirectDisplayID: Float] = [:]
+    private var screenOffMonitor: Any?            // global mouse monitor: restore on user return
+    private var screenOffActive = false
+
     // Preset durations (minutes); titles are generated per language
     private let presets: [Int] = [5, 10, 15, 30, 60]
 
@@ -346,6 +361,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lockOffItem: NSMenuItem!
     private var lockSleepItem: NSMenuItem!
     private var lockOffNoSleepItem: NSMenuItem!
+    private var screenOffItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ note: Notification) {
         if let saved = UserDefaults.standard.string(forKey: "endAction"),
@@ -438,6 +454,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // —— When Time's Up ——
         menu.addItem(.sectionHeader(title: t("section.endAction")))
+        // Items are ordered shortest-label-first, so "息屏" (Screen Off) comes first.
+        screenOffItem = NSMenuItem(title: t("menu.screenOff"), action: #selector(pickScreenOff), keyEquivalent: "")
+        screenOffItem.target = self
+        screenOffItem.image = icon("sun.min")
+        menu.addItem(screenOffItem)
+
         lockOnlyItem = NSMenuItem(title: t("menu.lockOnly"), action: #selector(pickLockOnly), keyEquivalent: "")
         lockOnlyItem.target = self
         lockOnlyItem.image = icon("lock")
@@ -519,6 +541,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lockOffItem.state = (endAction == .lockOff) ? .on : .off
         lockSleepItem.state = (endAction == .lockSleep) ? .on : .off
         lockOffNoSleepItem.state = (endAction == .lockOffNoSleep) ? .on : .off
+        screenOffItem.state = (endAction == .screenOff) ? .on : .off
         if tlItem != nil {                       // remaining time is computed only when the menu opens (saves power)
             tlItem.title = tlLabel()
             tlItem.state = tlActive ? .on : .off
@@ -599,6 +622,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func pickLockOff()     { setEndAction(.lockOff) }
     @objc private func pickLockSleep()   { setEndAction(.lockSleep) }
     @objc private func pickLockOffNoSleep() { setEndAction(.lockOffNoSleep) }
+    @objc private func pickScreenOff()      { setEndAction(.screenOff) }
 
     private func setEndAction(_ a: EndAction) {
         endAction = a
@@ -644,7 +668,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         keepAwakeTask = nil
     }
 
-    @objc private func quit() { killTask(); stopKeepAwake(); NSApp.terminate(nil) }
+    @objc private func quit() { wakeFromScreenOff(); stopKeepAwake(); NSApp.terminate(nil) }
 
     // MARK: - caffeinate control
 
@@ -733,6 +757,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             runPmset("displaysleepnow")
             let keep = makeCaffeinate(args: ["-is"]) { _ in }
             if launch(keep) { task = keep }
+        case .screenOff:
+            // "Screen off" (no lock): built-in brightness → 0 and external display → DDC
+            // power-off — both a true black that, unlike display sleep, keeps the GPU
+            // rendering (the built-in stays on at brightness 0 as the GPU's wake anchor).
+            // Keep the system awake (caffeinate -dis). A lightweight idle watcher restores
+            // brightness and re-lights the external the moment the user returns.
+            killTask()
+            stopScreenOffWatch()
+            dimBuiltInToZero()
+            externalDisplayOff()
+            let keep = makeCaffeinate(args: ["-dis"]) { _ in }
+            if launch(keep) { task = keep }
+            startScreenOffWatch()
         }
     }
 
@@ -748,6 +785,135 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         p.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
         p.arguments = [arg]
         try? p.run()
+    }
+
+    // MARK: - Screen off via brightness (keep rendering alive instead of sleeping the display)
+
+    // Private DisplayServices: control the real panel backlight on Apple Silicon. The
+    // built-in display dims to (near) black; external displays are best-effort — many
+    // ignore software brightness and only respond to DDC. Resolved once, like the
+    // login.framework lookup in lockScreen().
+    private typealias DSGetFn = @convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Float>) -> Int32
+    private typealias DSSetFn = @convention(c) (CGDirectDisplayID, Float) -> Int32
+    private static let dsHandle = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_NOW)
+    private static let dsGet: DSGetFn? = dsHandle.flatMap { dlsym($0, "DisplayServicesGetBrightness") }.map { unsafeBitCast($0, to: DSGetFn.self) }
+    private static let dsSet: DSSetFn? = dsHandle.flatMap { dlsym($0, "DisplayServicesSetBrightness") }.map { unsafeBitCast($0, to: DSSetFn.self) }
+
+    private func activeDisplays() -> [CGDirectDisplayID] {
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else { return [] }
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetActiveDisplayList(count, &ids, &count) == .success else { return [] }
+        return Array(ids.prefix(Int(count)))
+    }
+
+    // Save the built-in display's current brightness, then set it to 0. Only the built-in
+    // panel is touched — external displays (which can't be reliably restored over DDC) are
+    // left alone. Re-entry keeps the first-saved value so a second call can't record 0.
+    private func dimBuiltInToZero() {
+        guard let get = Self.dsGet, let set = Self.dsSet else { return }
+        for id in activeDisplays() where CGDisplayIsBuiltin(id) != 0 {
+            if savedBrightness[id] != nil { _ = set(id, 0); continue }   // re-entry: keep first-saved level
+            var cur: Float = 0
+            guard get(id, &cur) == 0 else { continue }   // can't read it → can't guarantee restore → leave it alone
+            savedBrightness[id] = cur
+            _ = set(id, 0)
+        }
+    }
+
+    private func restoreBrightness() {
+        if let set = Self.dsSet {
+            for (id, value) in savedBrightness { _ = set(id, value) }
+        }
+        savedBrightness.removeAll()
+    }
+
+    // After "息屏", restore the moment the user comes back. A short grace period skips the
+    // input that triggered the action (and any immediate residual); then a global event
+    // monitor fires on the first real mouse input. Event-driven, so the intermittent activity
+    // that defeated idle-polling can't defeat it. (Mouse events need no Accessibility permission.)
+    private func startScreenOffWatch() {
+        stopScreenOffWatch()
+        screenOffActive = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self = self, self.screenOffActive, self.screenOffMonitor == nil else { return }
+            self.screenOffMonitor = NSEvent.addGlobalMonitorForEvents(
+                matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel]
+            ) { [weak self] _ in self?.wakeFromScreenOff() }
+        }
+    }
+
+    private func stopScreenOffWatch() {
+        screenOffActive = false
+        if let m = screenOffMonitor { NSEvent.removeMonitor(m); screenOffMonitor = nil }
+    }
+
+    // User returned: restore built-in brightness, re-light the external display, and drop
+    // the keep-awake caffeinate we started.
+    private func wakeFromScreenOff() {
+        stopScreenOffWatch()
+        restoreBrightness()
+        externalDisplayWake()
+        killTask()
+    }
+
+    // MARK: - External display off / wake (DDC power-off + DisplayPort link-retrain)
+
+    // External monitors don't expose software brightness reliably, so "brightness 0" just
+    // leaves them dimly lit. Instead we turn the panel truly black with a DDC/CI power-off
+    // (VCP 0xD6 = 0x04), via IOAVService — the same path m1ddc uses. It CANNOT be turned
+    // back on over DDC (the channel is dead while the panel is off), so we wake it by forcing
+    // a DisplayPort link retrain (briefly switch resolution and back). Targets the default
+    // external display (IOAVServiceCreate), matching the common laptop + one monitor setup.
+    private typealias AVCreateFn = @convention(c) (CFAllocator?) -> Unmanaged<CFTypeRef>?
+    private typealias AVWriteFn  = @convention(c) (CFTypeRef, UInt32, UInt32, UnsafeMutableRawPointer, UInt32) -> Int32
+    private static let avHandle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW)
+    private static let avCreate: AVCreateFn? = avHandle.flatMap { dlsym($0, "IOAVServiceCreate") }.map { unsafeBitCast($0, to: AVCreateFn.self) }
+    private static let avWrite:  AVWriteFn?  = avHandle.flatMap { dlsym($0, "IOAVServiceWriteI2C") }.map { unsafeBitCast($0, to: AVWriteFn.self) }
+
+    private var externalIsOff = false   // only attempt a wake for a display we turned off
+
+    private func externalDisplays() -> [CGDirectDisplayID] {
+        activeDisplays().filter { CGDisplayIsBuiltin($0) == 0 }
+    }
+
+    // Turn the external display truly black via DDC power mode (VCP 0xD6 = 0x04 = DPMS off).
+    private func externalDisplayOff() {
+        guard let create = Self.avCreate, let write = Self.avWrite, !externalDisplays().isEmpty,
+              let avU = create(kCFAllocatorDefault) else { return }
+        let av = avU.takeRetainedValue()
+        let inputAddr: UInt8 = 0x51
+        var data: [UInt8] = [0x84, 0x03, 0xD6, 0x00, 0x04, 0]           // DDC "Set VCP" D6 = 0x04
+        data[5] = 0x6E ^ inputAddr ^ data[0] ^ data[1] ^ data[2] ^ data[3] ^ data[4]
+        for _ in 0..<2 {                                                 // write twice, like m1ddc
+            usleep(10_000)
+            _ = data.withUnsafeMutableBytes { write(av, 0x37, UInt32(inputAddr), $0.baseAddress!, 6) }
+        }
+        externalIsOff = true
+    }
+
+    // Wake the external display by forcing a DisplayPort link retrain: switch to another
+    // resolution and back. Non-blocking — the switch-back is scheduled, not slept on.
+    private func externalDisplayWake() {
+        guard externalIsOff else { return }
+        externalIsOff = false
+        for id in externalDisplays() {
+            guard let current = CGDisplayCopyDisplayMode(id),
+                  let modes = CGDisplayCopyAllDisplayModes(id, nil) as? [CGDisplayMode],
+                  let alt = modes.first(where: { $0.width != current.width || $0.height != current.height })
+            else { continue }
+            applyDisplayMode(alt, to: id)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+                self?.applyDisplayMode(current, to: id)
+            }
+        }
+    }
+
+    private func applyDisplayMode(_ mode: CGDisplayMode, to id: CGDirectDisplayID) {
+        var cfg: CGDisplayConfigRef?
+        guard CGBeginDisplayConfiguration(&cfg) == .success else { return }
+        CGConfigureDisplayWithDisplayMode(cfg, id, mode, nil)
+        CGCompleteDisplayConfiguration(cfg, .forSession)
     }
 
     // MARK: - Countdown / icon
@@ -962,6 +1128,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func screenDidUnlock() {
+        // Safety net: if a brightness-0 screen-off is still active at unlock, make sure the
+        // brightness is back (the watcher normally handles this before the prompt is reached).
+        if !savedBrightness.isEmpty { wakeFromScreenOff() }
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
         scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle just reset to zero, re-arm

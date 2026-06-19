@@ -96,9 +96,11 @@ Click the 💤 icon in the menu bar:
 | | 5 / 10 / 15 / 30 min, 1 hour | Starts a countdown; **click again to cancel** |
 | | Custom… | Enter any number of minutes; **remembered & pre-filled** next time |
 | | Never | Keep the screen on forever (menu bar shows `∞`) |
-| **When Time's Up** | Lock Screen | Lock only |
+| **When Time's Up** | Screen Off | **Built-in** brightness → 0 and **external** display → DDC power-off (both true black, **no lock**); keeps things awake so the GPU keeps rendering. On return, auto-restores brightness and re-lights the external via a DisplayPort link retrain |
+| | Lock Screen | Lock only |
 | | Lock & Turn Off Display | Lock + power down the display |
 | | Lock, Off & Sleep | Lock + put the Mac to sleep |
+| | Lock, Off & Stay Awake | Lock + power down the display, but keep the system awake |
 | **Timed Lock** | Timed Lock… | A two-line dialog: **"Lock after `[N]` min idle"** and **"Run for `[M]` min, then stop."** Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Both values are remembered & pre-filled |
 | **Language** | English · 中文 · Español · العربية · Português (Brasil) · 日本語 · Deutsch | Switch the whole menu instantly |
 | **Launch at Login** | toggle | Auto-start when you log in (a standard macOS Login Item). `install.sh` turns it **on** by default — uncheck here to disable |
@@ -116,6 +118,8 @@ SleepBar is a friendly menu-bar wrapper around capabilities already built into m
 |---|---|
 | Keep awake / countdown | `caffeinate -dis -t <seconds>` (no `sudo`, auto-expires) |
 | Turn off display | `pmset displaysleepnow` |
+| Screen Off — built-in | `DisplayServicesSetBrightness` to 0 + `caffeinate -dis`; `IOHIDSystem` `HIDIdleTime` watches for your return and auto-restores brightness |
+| Screen Off — external | `IOAVServiceWriteI2C` sends DDC power-off (VCP `D6=04`) for true black; on return, a brief resolution switch (`CGConfigureDisplayWithDisplayMode`) forces a DisplayPort link retrain to re-light it |
 | Sleep | `pmset sleepnow` |
 | Lock screen | `SACLockScreenImmediate` from `login.framework` |
 | Timed Lock — idle detection | `CGEventSource.secondsSinceLastEventType` (read-only system idle time; **no Accessibility permission**) |
