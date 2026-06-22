@@ -665,8 +665,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - Keep Awake (always-on, independent of the Screen Off Timer)
 
-    @objc private func toggleKeepAwake() {
-        keepAwake.toggle()
+    @objc private func toggleKeepAwake() { setKeepAwake(!keepAwake) }
+
+    // Set the always-on Keep Awake state, persist it, start/stop the caffeinate, and
+    // sync the checkmark. Also called by the .lockSleep end action to drop the assertion
+    // (it would otherwise fight pmset sleepnow and keep the machine dark-wake-thrashing).
+    private func setKeepAwake(_ on: Bool) {
+        keepAwake = on
         UserDefaults.standard.set(keepAwake, forKey: "keepAwake")
         if keepAwake { startKeepAwake() } else { stopKeepAwake() }
         updateChecks()
@@ -760,9 +765,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .lockOnly:
             lockScreen()
         case .lockOff:
+            // Drop any lingering per-run caffeinate first: a leftover "息屏" assertion
+            // (caffeinate -dis) blocks display sleep, so displaysleepnow would be fought.
+            if screenOffActive { wakeFromScreenOff() } else { killTask() }
             lockScreen()
             runPmset("displaysleepnow")
         case .lockSleep:
+            // A forced sleep can't hold against a live "prevent sleep" assertion: pmset
+            // sleepnow with a caffeinate still running makes the Mac dark-wake-thrash (fans
+            // ramp on an idle, cool CPU) instead of staying asleep. Release every sleep
+            // blocker first — any per-run caffeinate (task) and the always-on Keep Awake
+            // toggle, which directly contradicts "sleep now".
+            if screenOffActive { wakeFromScreenOff() } else { killTask() }
+            if keepAwake { setKeepAwake(false) }
             lockScreen()
             runPmset("sleepnow")
         case .lockOffNoSleep:
