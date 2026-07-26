@@ -84,6 +84,9 @@ private let l10n: [Lang: [String: String]] = [
         "tl.thenStop":         "分钟后自动停止",
         "login.errTitle":      "无法设置开机自启",
         "login.errMsg":        "请将 SleepBar.app 移动到「应用程序」文件夹后再试。",
+        "section.sysOff":      "系统关屏",
+        "sys.offAfterFmt":     "关屏时间: %@",
+        "sys.autoOff":         "提前 1 分钟自动息屏",
     ],
     .en: [
         "section.screenOff":   "Screen Off Timer",
@@ -121,6 +124,9 @@ private let l10n: [Lang: [String: String]] = [
         "tl.thenStop":         "min, then stop",
         "login.errTitle":      "Couldn't set Launch at Login",
         "login.errMsg":        "Move SleepBar.app to your Applications folder and try again.",
+        "section.sysOff":      "System Display Off",
+        "sys.offAfterFmt":     "Turn Off After: %@",
+        "sys.autoOff":         "Auto Screen Off 1 Min Early",
     ],
     .es: [
         "section.screenOff":   "Temporizador de pantalla",
@@ -158,6 +164,9 @@ private let l10n: [Lang: [String: String]] = [
         "tl.thenStop":         "min, luego parar",
         "login.errTitle":      "No se pudo configurar el inicio de sesión",
         "login.errMsg":        "Mueve SleepBar.app a la carpeta Aplicaciones e inténtalo de nuevo.",
+        "section.sysOff":      "Apagado del sistema",
+        "sys.offAfterFmt":     "Apagar tras: %@",
+        "sys.autoOff":         "Apagar pantalla 1 min antes",
     ],
     .ar: [
         "section.screenOff":   "مؤقّت إطفاء الشاشة",
@@ -195,6 +204,9 @@ private let l10n: [Lang: [String: String]] = [
         "tl.thenStop":         "دقيقة ثم التوقّف",
         "login.errTitle":      "تعذّر تفعيل الفتح عند تسجيل الدخول",
         "login.errMsg":        "انقل SleepBar.app إلى مجلد التطبيقات وحاول مجددًا.",
+        "section.sysOff":      "إطفاء شاشة النظام",
+        "sys.offAfterFmt":     "الإطفاء بعد: %@",
+        "sys.autoOff":         "إطفاء تلقائي قبل دقيقة",
     ],
     .pt: [
         "section.screenOff":   "Temporizador de tela",
@@ -232,6 +244,9 @@ private let l10n: [Lang: [String: String]] = [
         "tl.thenStop":         "min, depois parar",
         "login.errTitle":      "Não foi possível ativar a abertura ao fazer login",
         "login.errMsg":        "Mova o SleepBar.app para a pasta Aplicativos e tente novamente.",
+        "section.sysOff":      "Desligamento do sistema",
+        "sys.offAfterFmt":     "Desligar após: %@",
+        "sys.autoOff":         "Desligar a tela 1 min antes",
     ],
     .ja: [
         "section.screenOff":   "画面オフタイマー",
@@ -269,6 +284,9 @@ private let l10n: [Lang: [String: String]] = [
         "tl.thenStop":         "分後に自動停止",
         "login.errTitle":      "ログイン時の起動を設定できません",
         "login.errMsg":        "SleepBar.app を「アプリケーション」フォルダに移動してからもう一度お試しください。",
+        "section.sysOff":      "システムの画面オフ",
+        "sys.offAfterFmt":     "オフまでの時間: %@",
+        "sys.autoOff":         "1分前に自動で画面オフ",
     ],
     .de: [
         "section.screenOff":   "Bildschirm-Timer",
@@ -306,6 +324,9 @@ private let l10n: [Lang: [String: String]] = [
         "tl.thenStop":         "Min., dann stoppen",
         "login.errTitle":      "„Bei der Anmeldung öffnen“ konnte nicht aktiviert werden",
         "login.errMsg":        "Verschiebe SleepBar.app in den Ordner „Programme“ und versuche es erneut.",
+        "section.sysOff":      "System-Bildschirm aus",
+        "sys.offAfterFmt":     "Ausschalten nach: %@",
+        "sys.autoOff":         "1 Min. vorher Bildschirm aus",
     ],
 ]
 
@@ -348,6 +369,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var keepAwake = false
     private var keepAwakeTask: Process?
     private var keepAwakeItem: NSMenuItem!
+
+    // —— System display-off time (pmset displaysleep) ——
+    // Reading the current power source's displaysleep needs no privileges; changing it
+    // goes through pmset behind a one-time admin-password prompt (root is required to
+    // write power settings). autoOff triggers the "息屏" action (no lock, mouse wakes it)
+    // one minute before the system would sleep the display, so the system's
+    // "require password after display off" lock never engages.
+    private var sysOffMinutes: Int = -1        // current-source displaysleep; -1 = not read yet, 0 = never
+    private var sysOffOnAC = true              // which power source the value (and a write) applies to
+    private var sysOffItem: NSMenuItem!
+    private var sysOffPresetItems: [(min: Int, item: NSMenuItem)] = []
+    private let sysOffPresets = [1, 2, 5, 10, 15, 20, 30, 45, 60, 180, 0]  // System Settings pillars; 0 = never
+    private var autoOffEnabled = false
+    private var autoOffTimer: Timer?           // adaptive idle check, same pattern as Timed Lock
+    private var autoOffItem: NSMenuItem!
 
     // —— Screen off via brightness (the "息屏" / Screen Off end action) ——
     // Instead of sleeping the display (which stalls GPU rendering), drop the built-in
@@ -393,6 +429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         tlInterval  = UserDefaults.standard.integer(forKey: "tlInterval")
         tlWindowMin = UserDefaults.standard.integer(forKey: "tlWindowMin")
         keepAwake   = UserDefaults.standard.bool(forKey: "keepAwake")
+        autoOffEnabled = UserDefaults.standard.bool(forKey: "autoScreenOff")
 
         // Observe lock/unlock (event-driven; zero polling while locked)
         let dc = DistributedNotificationCenter.default()
@@ -412,6 +449,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         buildMenu()
         refreshUI()
         if keepAwake { startKeepAwake() }   // restore the always-on keep-awake assertion
+        readSysOff { [weak self] _ in self?.rearmAutoOff() }   // populate the menu; arm auto screen-off
     }
 
     // MARK: - Localization
@@ -504,6 +542,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         tlItem.image = icon("lock.rotation")
         menu.addItem(tlItem)
 
+        // —— System Display Off (read/write pmset displaysleep + auto early screen-off) ——
+        menu.addItem(.sectionHeader(title: t("section.sysOff")))
+        sysOffItem = NSMenuItem(title: sysOffLabel(), action: nil, keyEquivalent: "")
+        sysOffItem.image = icon("timer")
+        let sysMenu = NSMenu()
+        sysOffPresetItems = []
+        for minutes in sysOffPresets {
+            let title = (minutes == 0) ? t("menu.never") : durationTitle(minutes)
+            let item = NSMenuItem(title: title, action: #selector(pickSysOff(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = minutes
+            sysMenu.addItem(item)
+            sysOffPresetItems.append((minutes, item))
+        }
+        sysOffItem.submenu = sysMenu
+        menu.addItem(sysOffItem)
+
+        autoOffItem = NSMenuItem(title: t("sys.autoOff"), action: #selector(toggleAutoOff), keyEquivalent: "")
+        autoOffItem.target = self
+        autoOffItem.image = icon("moon")
+        menu.addItem(autoOffItem)
+
         // —— Language ——
         menu.addItem(.separator())
         let langItem = NSMenuItem(title: t("menu.language"), action: nil, keyEquivalent: "")
@@ -546,7 +606,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateChecks()
     }
 
-    func menuWillOpen(_ menu: NSMenu) { updateChecks() }
+    func menuWillOpen(_ menu: NSMenu) {
+        updateChecks()
+        readSysOff()   // async refresh; the submenu label updates in place when it lands
+    }
 
     private func updateChecks() {
         let m = activeMinutes
@@ -566,6 +629,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if keepAwakeItem != nil {
             keepAwakeItem.state = keepAwake ? .on : .off
         }
+        if autoOffItem != nil {
+            autoOffItem.state = autoOffEnabled ? .on : .off
+        }
+        updateSysOffUI()
         if launchItem != nil {
             launchItem.state = launchAtLoginEnabled() ? .on : .off
         }
@@ -790,20 +857,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let keep = makeCaffeinate(args: ["-is"]) { _ in }
             if launch(keep) { task = keep }
         case .screenOff:
-            // "Screen off" (no lock): built-in brightness → 0, external display → DDC
-            // power-off, and keyboard backlight → 0 — all a true black that, unlike display
-            // sleep, keeps the GPU rendering (the built-in stays on at brightness 0 as the
-            // GPU's wake anchor). Keep the system awake (caffeinate -dis). The watcher
-            // restores brightness + keyboard and re-lights the external when the user returns.
-            killTask()
-            stopScreenOffWatch()
-            dimBuiltInToZero()
-            externalDisplayOff()
-            dimKeyboardToZero()
-            let keep = makeCaffeinate(args: ["-dis"]) { _ in }
-            if launch(keep) { task = keep }
-            startScreenOffWatch()
+            activateScreenOff()
         }
+    }
+
+    // "Screen off" (no lock): built-in brightness → 0, external display → DDC
+    // power-off, and keyboard backlight → 0 — all a true black that, unlike display
+    // sleep, keeps the GPU rendering (the built-in stays on at brightness 0 as the
+    // GPU's wake anchor). Keep the system awake (caffeinate -dis). The watcher
+    // restores brightness + keyboard and re-lights the external when the user returns.
+    // Called by the .screenOff end action and by the auto-early-screen-off trigger.
+    private func activateScreenOff() {
+        killTask()
+        stopScreenOffWatch()
+        dimBuiltInToZero()
+        externalDisplayOff()
+        dimKeyboardToZero()
+        let keep = makeCaffeinate(args: ["-dis"]) { _ in }
+        if launch(keep) { task = keep }
+        startScreenOffWatch()
     }
 
     private func lockScreen() {
@@ -904,6 +976,130 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         restoreKeyboardBrightness()
         externalDisplayWake()
         killTask()
+        rearmAutoOff()   // idle just reset; schedule the next early-screen-off check
+    }
+
+    // MARK: - System display-off time (pmset displaysleep) + auto early screen-off
+
+    private func sysOffLabel() -> String {
+        let value: String
+        if sysOffMinutes < 0 { value = "…" }
+        else if sysOffMinutes == 0 { value = t("menu.never") }
+        else { value = durationTitle(sysOffMinutes) }
+        return String(format: t("sys.offAfterFmt"), value)
+    }
+
+    private func updateSysOffUI() {
+        guard sysOffItem != nil else { return }
+        sysOffItem.title = sysOffLabel()
+        for (min, item) in sysOffPresetItems { item.state = (min == sysOffMinutes) ? .on : .off }
+    }
+
+    private static func runCapture(_ path: String, _ args: [String]) -> String {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = args
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = Pipe()
+        do { try p.run() } catch { return "" }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    // Read the active power source and its displaysleep minutes (no privileges needed).
+    // Off the main thread; cache + UI update and the completion land back on main.
+    private func readSysOff(_ completion: ((Int) -> Void)? = nil) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let out = Self.runCapture("/bin/sh", ["-c", "/usr/bin/pmset -g ps; /usr/bin/pmset -g"])
+            let lines = out.split(separator: "\n")
+            let onAC = !(lines.first?.contains("Battery") ?? false)
+            var mins = 0
+            for line in lines {
+                let l = line.trimmingCharacters(in: .whitespaces)
+                if l.hasPrefix("displaysleep") {
+                    let rest = l.dropFirst("displaysleep".count).trimmingCharacters(in: .whitespaces)
+                    mins = Int(rest.prefix(while: { $0.isNumber })) ?? 0
+                }
+            }
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.sysOffOnAC = onAC
+                self.sysOffMinutes = mins
+                self.updateSysOffUI()
+                completion?(mins)
+            }
+        }
+    }
+
+    @objc private func pickSysOff(_ sender: NSMenuItem) {
+        guard sender.tag != sysOffMinutes else { return }
+        setSysOff(minutes: sender.tag)
+    }
+
+    // Write displaysleep for the current power source only (-c on AC, -b on battery),
+    // mirroring how System Settings keeps the two independent. pmset needs root, so this
+    // runs through osascript's admin-password prompt; a cancel simply changes nothing —
+    // the re-read afterwards restores the true state either way.
+    private func setSysOff(minutes: Int) {
+        let cmd = "/usr/bin/pmset \(sysOffOnAC ? "-c" : "-b") displaysleep \(minutes)"
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            _ = Self.runCapture("/usr/bin/osascript",
+                                ["-e", "do shell script \"\(cmd)\" with administrator privileges"])
+            DispatchQueue.main.async {
+                self?.readSysOff { _ in self?.rearmAutoOff() }
+            }
+        }
+    }
+
+    @objc private func toggleAutoOff() {
+        autoOffEnabled.toggle()
+        UserDefaults.standard.set(autoOffEnabled, forKey: "autoScreenOff")
+        if autoOffEnabled { rearmAutoOff() } else { stopAutoOffTimer() }
+        updateChecks()
+    }
+
+    private func stopAutoOffTimer() {
+        autoOffTimer?.invalidate()
+        autoOffTimer = nil
+    }
+
+    // (Re)start the adaptive idle check. Safe to call anytime: it no-ops when the
+    // toggle is off and the first check computes the precise delay itself.
+    private func rearmAutoOff() {
+        stopAutoOffTimer()
+        guard autoOffEnabled else { return }
+        scheduleAutoOffCheck(after: 1)
+    }
+
+    private func scheduleAutoOffCheck(after seconds: TimeInterval) {
+        stopAutoOffTimer()
+        guard autoOffEnabled else { return }
+        let delay = max(1, seconds)
+        let tm = Timer(timeInterval: delay, repeats: false) { [weak self] _ in self?.autoOffCheck() }
+        tm.tolerance = max(2, delay * 0.05)
+        RunLoop.main.add(tm, forMode: .common)
+        autoOffTimer = tm
+    }
+
+    private func autoOffCheck() {
+        guard autoOffEnabled else { return }
+        // Re-read pmset each check: the value or the power source may have changed.
+        readSysOff { [weak self] mins in
+            guard let self = self, self.autoOffEnabled else { return }
+            if self.screenOffActive { return }                       // already dark; wake re-arms
+            guard mins >= 2 else {                                   // never / too short to lead by 1 min
+                self.scheduleAutoOffCheck(after: 300); return
+            }
+            if self.activeMinutes != nil {                           // countdown/∞ already blocks display sleep
+                self.scheduleAutoOffCheck(after: 120); return
+            }
+            let threshold = TimeInterval(mins * 60 - 60)             // fire 1 min before the system would
+            let idle = self.systemIdleSeconds()
+            if idle >= threshold { self.activateScreenOff() }
+            else { self.scheduleAutoOffCheck(after: threshold - idle) }
+        }
     }
 
     // MARK: - External display off / wake (DDC power-off + DisplayPort link-retrain)
@@ -1175,6 +1371,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func screenDidLock() {
+        // Locked: the system handles the display from here (auto screen-off must not keep
+        // a locked screen lit at brightness 0), so pause the early-screen-off checks too
+        stopAutoOffTimer()
         // Locked (whether automatic or manual): idle checks are pointless, stop and wait for unlock
         guard tlActive else { return }
         tlTimer?.invalidate(); tlTimer = nil
@@ -1184,6 +1383,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Safety net: if a brightness-0 screen-off is still active at unlock, make sure the
         // brightness is back (the watcher normally handles this before the prompt is reached).
         if !savedBrightness.isEmpty { wakeFromScreenOff() }
+        rearmAutoOff()   // unlocked = user is back; restart the early-screen-off watch
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
         scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle just reset to zero, re-arm
