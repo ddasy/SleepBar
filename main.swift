@@ -804,6 +804,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         activeMinutes = nil
         endDate = nil
         stopTicker()
+        // A countdown suppresses the automatic early-screen-off checks. Recalculate
+        // immediately when it is cancelled so macOS cannot win the race while the
+        // previous (coarse) retry is still pending.
+        rearmAutoOff()
         refreshUI(); updateChecks()
     }
 
@@ -1078,7 +1082,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard autoOffEnabled else { return }
         let delay = max(1, seconds)
         let tm = Timer(timeInterval: delay, repeats: false) { [weak self] _ in self?.autoOffCheck() }
-        tm.tolerance = max(2, delay * 0.05)
+        // This timer must beat the system display-sleep deadline by one minute.
+        // A percentage-based tolerance is unsafe here: at a 30-minute setting,
+        // 5% lets the 29-minute timer slip by 87 seconds, after macOS has already
+        // turned the display off. Keep the leeway tightly bounded instead.
+        tm.tolerance = min(1, delay * 0.05)
         RunLoop.main.add(tm, forMode: .common)
         autoOffTimer = tm
     }
