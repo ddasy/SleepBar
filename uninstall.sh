@@ -20,6 +20,15 @@ echo "==> Uninstalling SleepBar"
 pkill -x "$APP_NAME" 2>/dev/null || true
 rm -rf "$APP_DIR"
 
+# A DMG install puts the same app in /Applications — remove that copy too, otherwise its
+# icon stays behind in Launchpad/Spotlight after "uninstalling".
+DMG_APP="/Applications/$APP_NAME.app"
+if [ -d "$DMG_APP" ]; then
+  "$DMG_APP/Contents/MacOS/$APP_NAME" --unregister-login 2>/dev/null || true
+  rm -rf "$DMG_APP" 2>/dev/null \
+    || echo "!! Could not remove $DMG_APP (try: sudo rm -rf \"$DMG_APP\")"
+fi
+
 # Remove the `sleepbar` alias added by install.sh (matched by its marker comment)
 if [ -f "$HOME/.zshrc" ]; then
   sed -i '' '/# added by SleepBar install.sh$/d' "$HOME/.zshrc" 2>/dev/null || true

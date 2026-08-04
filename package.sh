@@ -72,11 +72,23 @@ codesign --force --deep --sign - "$APP" 2>/dev/null && echo "Ad-hoc signed." \
     || echo "   (codesign skipped)"
 
 # 4) Build the DMG with an /Applications drop target + custom icons
-STAGE="$BUILD_DIR/dmg"
+#
+# The staging folder lives in $TMPDIR (/var/folders/…), which Spotlight does not index.
+# Staging inside the repo would leave a second registered copy of SleepBar.app on the
+# build machine — one more duplicate icon in Launchpad/Spotlight.
+STAGE="$(mktemp -d)/dmg"
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 cp "$ICNS" "$STAGE/.VolumeIcon.icns"          # Finder shows this for the mounted volume
+
+# Keep the mounted DMG out of Spotlight/LaunchServices. Without this, macOS indexes
+# SleepBar.app *inside the disk image* as a real installed app: right after the user
+# drags it to /Applications, Launchpad and Spotlight show TWO SleepBar icons (the DMG
+# one lingers in the LaunchServices database even after ejecting).
+touch "$STAGE/.metadata_never_index"
+mkdir -p "$STAGE/.fseventsd"
+touch "$STAGE/.fseventsd/no_log"
 
 # Build read-write first so we can flag the volume's custom-icon bit,
 # then convert to a compressed read-only image for distribution.
@@ -87,7 +99,13 @@ SetFile -a C "$DEV"                            # kHasCustomIcon -> use .VolumeIc
 hdiutil detach "$DEV" -quiet
 hdiutil convert "$TMP_DMG" -format UDZO -o "$DMG" >/dev/null
 rm -f "$TMP_DMG"
-rm -rf "$STAGE"
+rm -rf "$(dirname "$STAGE")"
+
+# 4b) build/SleepBar.app is a build artifact, not an installed app — drop it from the
+# LaunchServices database so it doesn't show up in Launchpad/Spotlight next to a real
+# install. (Best effort; harmless if the app was never registered.)
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+[ -x "$LSREGISTER" ] && "$LSREGISTER" -u "$PWD/$APP" >/dev/null 2>&1 || true
 
 # Give the .dmg file itself a Finder icon (what you see in Downloads).
 swift set_file_icon.swift "$ICNS" "$DMG" || echo "   (dmg file-icon skipped)"

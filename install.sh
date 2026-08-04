@@ -94,6 +94,14 @@ PLIST
 codesign --force --deep --sign - "$APP_DIR" 2>/dev/null || true
 
 # 4) Clean up older installs (bare binary in Application Support + LaunchAgent)
+# A DMG install lives in /Applications; leaving it there means two SleepBar icons and
+# two menu-bar moons. Point it out rather than deleting someone else's copy silently.
+if [ -d "/Applications/$APP_NAME.app" ]; then
+  echo "!! /Applications/$APP_NAME.app also exists (installed from the DMG)."
+  echo "   Two copies = two icons in Launchpad/Spotlight. Remove the other one with:"
+  echo "     rm -rf \"/Applications/$APP_NAME.app\""
+fi
+
 launchctl unload "$OLD_PLIST" 2>/dev/null || true
 rm -f "$OLD_PLIST"
 rm -rf "$OLD_INSTALL_DIR"
