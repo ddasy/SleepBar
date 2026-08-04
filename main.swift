@@ -403,6 +403,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var keyboardBacklight: KeyboardBacklight? { keyboardClientObj.map { unsafeBitCast($0, to: KeyboardBacklight.self) } }
     private var savedKeyboardBrightness: Float?
 
+    // Output volume (system slider, 0…100) dimmed to 1% alongside the screen; pre-dim level
+    // is restored on wake, same as brightness.
+    private var savedVolume: Int?
+
     // Preset durations (minutes); titles are generated per language
     private let presets: [Int] = [5, 10, 15, 30, 60]
 
@@ -868,8 +872,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // "Screen off" (no lock): built-in brightness → 0, external display → DDC
     // power-off, and keyboard backlight → 0 — all a true black that, unlike display
     // sleep, keeps the GPU rendering (the built-in stays on at brightness 0 as the
-    // GPU's wake anchor). Keep the system awake (caffeinate -dis). The watcher
-    // restores brightness + keyboard and re-lights the external when the user returns.
+    // GPU's wake anchor). Output volume also drops to 1%. Keep the system awake
+    // (caffeinate -dis). The watcher restores brightness + keyboard + volume and
+    // re-lights the external when the user returns.
     // Called by the .screenOff end action and by the auto-early-screen-off trigger.
     private func activateScreenOff() {
         killTask()
@@ -877,6 +882,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         dimBuiltInToZero()
         externalDisplayOff()
         dimKeyboardToZero()
+        dimVolumeToOne()
         let keep = makeCaffeinate(args: ["-dis"]) { _ in }
         if launch(keep) { task = keep }
         startScreenOffWatch()
@@ -952,6 +958,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         savedKeyboardBrightness = nil
     }
 
+    // Output volume, via AppleScript's volume settings (0…100). Save the current level and
+    // drop it to 1% — quiet, but a notification still isn't completely silent. Re-entry keeps
+    // the first saved value so a second call can't record the dimmed 1.
+    private func dimVolumeToOne() {
+        guard let cur = currentOutputVolume() else { return }   // can't read it → can't restore → leave it alone
+        if savedVolume == nil { savedVolume = cur }
+        runOsascript("set volume output volume 1")
+    }
+
+    private func restoreVolume() {
+        guard let saved = savedVolume else { return }
+        runOsascript("set volume output volume \(saved)")
+        savedVolume = nil
+    }
+
+    private func currentOutputVolume() -> Int? {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        p.arguments = ["-e", "output volume of (get volume settings)"]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        let out = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let v = Int(out), (0...100).contains(v) else { return nil }   // "missing value" on some outputs
+        return v
+    }
+
+    private func runOsascript(_ script: String) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        p.arguments = ["-e", script]
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+    }
+
     // After "息屏", restore the moment the user comes back. A short grace period skips the
     // input that triggered the action (and any immediate residual); then a global event
     // monitor fires on the first real mouse input. Event-driven, so the intermittent activity
@@ -978,6 +1022,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         stopScreenOffWatch()
         restoreBrightness()
         restoreKeyboardBrightness()
+        restoreVolume()
         externalDisplayWake()
         killTask()
         rearmAutoOff()   // idle just reset; schedule the next early-screen-off check
@@ -1390,7 +1435,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func screenDidUnlock() {
         // Safety net: if a brightness-0 screen-off is still active at unlock, make sure the
         // brightness is back (the watcher normally handles this before the prompt is reached).
-        if !savedBrightness.isEmpty { wakeFromScreenOff() }
+        if !savedBrightness.isEmpty || savedVolume != nil { wakeFromScreenOff() }
         rearmAutoOff()   // unlocked = user is back; restart the early-screen-off watch
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
