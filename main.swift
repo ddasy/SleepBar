@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import IOKit.ps
 import ServiceManagement
 
 // SleepBar — a menu-bar tool for temporarily scheduling "screen off time".
@@ -87,6 +88,7 @@ private let l10n: [Lang: [String: String]] = [
         "section.sysOff":      "系统关屏",
         "sys.offAfterFmt":     "关屏时间: %@",
         "sys.autoOff":         "提前 1 分钟自动息屏",
+        "sys.writeFailed":     "屏幕关闭时间未能修改",
     ],
     .en: [
         "section.screenOff":   "Screen Off Timer",
@@ -127,6 +129,7 @@ private let l10n: [Lang: [String: String]] = [
         "section.sysOff":      "System Display Off",
         "sys.offAfterFmt":     "Turn Off After: %@",
         "sys.autoOff":         "Auto Screen Off 1 Min Early",
+        "sys.writeFailed":     "Couldn't change the display-off time",
     ],
     .es: [
         "section.screenOff":   "Temporizador de pantalla",
@@ -167,6 +170,7 @@ private let l10n: [Lang: [String: String]] = [
         "section.sysOff":      "Apagado del sistema",
         "sys.offAfterFmt":     "Apagar tras: %@",
         "sys.autoOff":         "Apagar pantalla 1 min antes",
+        "sys.writeFailed":     "No se pudo cambiar el tiempo de apagado",
     ],
     .ar: [
         "section.screenOff":   "مؤقّت إطفاء الشاشة",
@@ -207,6 +211,7 @@ private let l10n: [Lang: [String: String]] = [
         "section.sysOff":      "إطفاء شاشة النظام",
         "sys.offAfterFmt":     "الإطفاء بعد: %@",
         "sys.autoOff":         "إطفاء تلقائي قبل دقيقة",
+        "sys.writeFailed":     "تعذّر تغيير مدة إطفاء الشاشة",
     ],
     .pt: [
         "section.screenOff":   "Temporizador de tela",
@@ -247,6 +252,7 @@ private let l10n: [Lang: [String: String]] = [
         "section.sysOff":      "Desligamento do sistema",
         "sys.offAfterFmt":     "Desligar após: %@",
         "sys.autoOff":         "Desligar a tela 1 min antes",
+        "sys.writeFailed":     "Não foi possível alterar o tempo de desligamento",
     ],
     .ja: [
         "section.screenOff":   "画面オフタイマー",
@@ -287,6 +293,7 @@ private let l10n: [Lang: [String: String]] = [
         "section.sysOff":      "システムの画面オフ",
         "sys.offAfterFmt":     "オフまでの時間: %@",
         "sys.autoOff":         "1分前に自動で画面オフ",
+        "sys.writeFailed":     "画面オフ時間を変更できませんでした",
     ],
     .de: [
         "section.screenOff":   "Bildschirm-Timer",
@@ -327,6 +334,7 @@ private let l10n: [Lang: [String: String]] = [
         "section.sysOff":      "System-Bildschirm aus",
         "sys.offAfterFmt":     "Ausschalten nach: %@",
         "sys.autoOff":         "1 Min. vorher Bildschirm aus",
+        "sys.writeFailed":     "Bildschirm-Auszeit konnte nicht geändert werden",
     ],
 ]
 
@@ -384,12 +392,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var autoOffEnabled = false
     private var autoOffTimer: Timer?           // adaptive idle check, same pattern as Timed Lock
     private var autoOffItem: NSMenuItem!
+    private var powerSourceRunLoopSource: CFRunLoopSource?   // held for the app's lifetime
+    private var sigtermSource: DispatchSourceSignal?         // ditto
 
     // —— Screen off via brightness (the "息屏" / Screen Off end action) ——
     // Instead of sleeping the display (which stalls GPU rendering), drop the built-in
     // display brightness to 0 and keep things awake; the watcher restores it on return.
     private var savedBrightness: [CGDirectDisplayID: Float] = [:]
     private var screenOffMonitor: Any?            // global mouse monitor: restore on user return
+    private var screenOffIdleTimer: Timer?        // keyboard fallback: watch HID idle for a drop
+    private var lastScreenOffIdle: TimeInterval = 0
     private var screenOffActive = false
 
     // Keyboard backlight (built-in keyboard = id 1). The client is held for the app's
@@ -403,9 +415,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var keyboardBacklight: KeyboardBacklight? { keyboardClientObj.map { unsafeBitCast($0, to: KeyboardBacklight.self) } }
     private var savedKeyboardBrightness: Float?
 
-    // Output volume (system slider, 0…100) dimmed to 1% alongside the screen; pre-dim level
-    // is restored on wake, same as brightness.
+    // Output volume (system slider, 0…100) dimmed to 1% and muted alongside the screen;
+    // the pre-dim level and mute state are restored on wake, same as brightness.
+    // savedVolume stays nil on outputs with no software volume control (HDMI, most USB
+    // DACs, AirPlay) — there, muting is the whole of the effect. savedMuted != nil is the
+    // "we dimmed something and owe a restore" marker.
     private var savedVolume: Int?
+    private var savedMuted: Bool?
 
     // Preset durations (minutes); titles are generated per language
     private let presets: [Int] = [5, 10, 15, 30, 60]
@@ -442,12 +458,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         dc.addObserver(self, selector: #selector(screenDidUnlock),
                        name: NSNotification.Name("com.apple.screenIsUnlocked"), object: nil)
 
+        // Plugging in or unplugging swaps macOS to the other displaysleep profile, so both
+        // the menu label and any pending auto-off deadline have to be recomputed.
+        if let src = IOPSNotificationCreateRunLoopSource({ ctx in
+            guard let ctx = ctx else { return }
+            Unmanaged<AppDelegate>.fromOpaque(ctx).takeUnretainedValue().powerSourceChanged()
+        }, Unmanaged.passUnretained(self).toOpaque())?.takeRetainedValue() {
+            CFRunLoopAddSource(CFRunLoopGetMain(), src, .defaultMode)
+            powerSourceRunLoopSource = src
+        }
+
+        // Timers don't run while the machine is asleep, so a pending auto-off deadline comes
+        // back stale (and idle is zero again anyway). Recompute it from the wake.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(systemDidWake),
+            name: NSWorkspace.didWakeNotification, object: nil)
+
         // install.sh passes --register-login on the first launch after installing:
         // register as a Login Item (SMAppService; uncheck anytime via "Launch at Login")
         if CommandLine.arguments.contains("--register-login"), isAppBundle,
            #available(macOS 13.0, *) {
             try? SMAppService.mainApp.register()
         }
+
+        installTerminationHandler()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         buildMenu()
@@ -958,42 +992,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         savedKeyboardBrightness = nil
     }
 
-    // Output volume, via AppleScript's volume settings (0…100). Save the current level and
-    // drop it to 1% — quiet, but a notification still isn't completely silent. Re-entry keeps
-    // the first saved value so a second call can't record the dimmed 1.
+    // Output volume + mute, via AppleScript's volume settings (0…100).
+    //
+    // Muting matters as much as the 1%: on outputs macOS can't attenuate in software
+    // (HDMI, most USB DACs, AirPlay) `output volume` reads back as `missing value` and
+    // setting it does nothing — the mute flag is the only thing that actually silences
+    // those. The previous code bailed out on exactly those devices and left the volume
+    // untouched, with no sign anything had gone wrong.
+    //
+    // One osascript run reads the pre-dim state *and* applies the new one, so there is no
+    // window in which a wake can race the dim, and the main thread stalls once, not twice.
+    // Re-entry keeps the first saved state so a second call can't record the dimmed 1.
     private func dimVolumeToOne() {
-        guard let cur = currentOutputVolume() else { return }   // can't read it → can't restore → leave it alone
-        if savedVolume == nil { savedVolume = cur }
-        runOsascript("set volume output volume 1")
+        guard savedMuted == nil else { return }
+        let script = """
+        set s to (get volume settings)
+        set v to output volume of s
+        set m to output muted of s
+        set volume output volume 1 with output muted
+        return (v as string) & "|" & (m as string)
+        """
+        guard let out = runOsascript(script) else { return }   // script failed → nothing applied
+        let parts = out.split(separator: "|", omittingEmptySubsequences: false)
+                       .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2 else { return }
+        savedVolume = parts[0] == "missing value" ? nil : Int(parts[0])
+        savedMuted  = parts[1] == "true"                      // "missing value" → treat as unmuted
     }
 
+    // savedMuted (not savedVolume) is the "we dimmed something" marker: on a device with no
+    // software volume there is no level to restore, but the mute we applied still has to go.
     private func restoreVolume() {
-        guard let saved = savedVolume else { return }
-        runOsascript("set volume output volume \(saved)")
+        guard let muted = savedMuted else { return }
+        let level = savedVolume.map { "output volume \($0) " } ?? ""
+        _ = runOsascript("set volume \(level)\(muted ? "with" : "without") output muted")
         savedVolume = nil
+        savedMuted = nil
     }
 
-    private func currentOutputVolume() -> Int? {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        p.arguments = ["-e", "output volume of (get volume settings)"]
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = FileHandle.nullDevice
-        guard (try? p.run()) != nil else { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        let out = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let v = Int(out), (0...100).contains(v) else { return nil }   // "missing value" on some outputs
-        return v
-    }
-
-    private func runOsascript(_ script: String) {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        p.arguments = ["-e", script]
-        p.standardError = FileHandle.nullDevice
-        try? p.run()
+    // Returns stdout, or nil if osascript failed. Waiting (rather than fire-and-forget)
+    // reaps the child, keeps dim and restore ordered, and makes a failure visible to the
+    // caller instead of silently doing nothing.
+    @discardableResult
+    private func runOsascript(_ script: String) -> String? {
+        let r = Self.runCaptureStatus("/usr/bin/osascript", ["-e", script])
+        guard r.status == 0 else { return nil }
+        return r.out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // After "息屏", restore the moment the user comes back. A short grace period skips the
@@ -1008,12 +1052,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.screenOffMonitor = NSEvent.addGlobalMonitorForEvents(
                 matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel]
             ) { [weak self] _ in self?.wakeFromScreenOff() }
+            self.startScreenOffIdleWatch()
         }
+    }
+
+    // Keyboard fallback for the mouse monitor above. A global .keyDown monitor would need
+    // Accessibility permission, so watch the HID idle clock instead — keystrokes reset it
+    // too. Without this, returning via the keyboard leaves the screen black and the audio
+    // muted with no way out but a mouse nudge (and macOS won't sleep the display either:
+    // our own caffeinate -d is holding it awake).
+    //
+    // A *drop* in idle seconds means new input, which is timing-independent — comparing
+    // against a fixed threshold would miss a keystroke that lands just after a tick.
+    // Polling is only appropriate here because systemIdleSeconds() reads hardware HID
+    // state: on the combined source an event posted by any other process reads as user
+    // activity, which would wake the screen for no reason.
+    private func startScreenOffIdleWatch() {
+        lastScreenOffIdle = systemIdleSeconds()
+        let tm = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self = self, self.screenOffActive else { return }
+            let idle = self.systemIdleSeconds()
+            let dropped = idle < self.lastScreenOffIdle - 0.1
+            self.lastScreenOffIdle = idle
+            if dropped { self.wakeFromScreenOff() }
+        }
+        tm.tolerance = 0.3
+        RunLoop.main.add(tm, forMode: .common)
+        screenOffIdleTimer = tm
     }
 
     private func stopScreenOffWatch() {
         screenOffActive = false
         if let m = screenOffMonitor { NSEvent.removeMonitor(m); screenOffMonitor = nil }
+        screenOffIdleTimer?.invalidate()
+        screenOffIdleTimer = nil
     }
 
     // User returned: restore built-in brightness + keyboard backlight, re-light the external
@@ -1045,27 +1117,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private static func runCapture(_ path: String, _ args: [String]) -> String {
+        runCaptureStatus(path, args).out
+    }
+
+    // Same, but keeps stderr and the exit status. The pmset write path needs both to tell
+    // "the user cancelled the password prompt" apart from "the write actually failed".
+    // Outputs here are a few hundred bytes, well under a pipe buffer, so draining stdout
+    // before stderr can't deadlock.
+    private static func runCaptureStatus(_ path: String, _ args: [String]) -> (out: String, err: String, status: Int32) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: path)
         p.arguments = args
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = Pipe()
-        do { try p.run() } catch { return "" }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let outPipe = Pipe(), errPipe = Pipe()
+        p.standardOutput = outPipe
+        p.standardError = errPipe
+        do { try p.run() } catch { return ("", "\(error)", -1) }
+        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
-        return String(data: data, encoding: .utf8) ?? ""
+        return (String(decoding: outData, as: UTF8.self),
+                String(decoding: errData, as: UTF8.self),
+                p.terminationStatus)
+    }
+
+    // Which power source is live. In-process (IOKit) rather than parsing `pmset -g ps`, so
+    // it is cheap enough to re-check on every power-source notification and immediately
+    // before a write. Desktops report AC; an unknown type is treated as AC too.
+    private static func onACPower() -> Bool {
+        guard let type = IOPSGetProvidingPowerSourceType(nil)?.takeUnretainedValue() as String?
+        else { return true }
+        return type != kIOPSBatteryPowerValue
     }
 
     // Read the active power source and its displaysleep minutes (no privileges needed).
+    // `pmset -g` reports the profile currently in use, which is the one that matters.
     // Off the main thread; cache + UI update and the completion land back on main.
     private func readSysOff(_ completion: ((Int) -> Void)? = nil) {
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let out = Self.runCapture("/bin/sh", ["-c", "/usr/bin/pmset -g ps; /usr/bin/pmset -g"])
-            let lines = out.split(separator: "\n")
-            let onAC = !(lines.first?.contains("Battery") ?? false)
+            let onAC = Self.onACPower()
+            let out = Self.runCapture("/usr/bin/pmset", ["-g"])
             var mins = 0
-            for line in lines {
+            for line in out.split(separator: "\n") {
                 let l = line.trimmingCharacters(in: .whitespaces)
                 if l.hasPrefix("displaysleep") {
                     let rest = l.dropFirst("displaysleep".count).trimmingCharacters(in: .whitespaces)
@@ -1082,8 +1174,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    // The power-source notification also fires on battery-percentage ticks, so only act
+    // when the AC/battery state actually flipped — that is when macOS swaps in the other
+    // displaysleep profile (e.g. 30 min on AC, 5 min on battery) and both the menu label
+    // and the pending auto-off deadline are suddenly computed from the wrong number.
+    private func powerSourceChanged() {
+        guard Self.onACPower() != sysOffOnAC else { return }
+        readSysOff { [weak self] _ in self?.rearmAutoOff() }
+    }
+
     @objc private func pickSysOff(_ sender: NSMenuItem) {
-        guard sender.tag != sysOffMinutes else { return }
+        // No "already selected, nothing to do" shortcut: sysOffMinutes is a cache, and
+        // skipping on a stale one silently swallows the click.
         setSysOff(minutes: sender.tag)
     }
 
@@ -1092,14 +1194,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // runs through osascript's admin-password prompt; a cancel simply changes nothing —
     // the re-read afterwards restores the true state either way.
     private func setSysOff(minutes: Int) {
-        let cmd = "/usr/bin/pmset \(sysOffOnAC ? "-c" : "-b") displaysleep \(minutes)"
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            _ = Self.runCapture("/usr/bin/osascript",
-                                ["-e", "do shell script \"\(cmd)\" with administrator privileges"])
+            // Read the source at write time instead of trusting sysOffOnAC: the cache can be
+            // minutes old, and writing the wrong profile leaves the live one untouched —
+            // "I set 30 minutes and it still turns off after 5".
+            let onAC = Self.onACPower()
+            let cmd = "/usr/bin/pmset \(onAC ? "-c" : "-b") displaysleep \(minutes)"
+            let r = Self.runCaptureStatus("/usr/bin/osascript",
+                                          ["-e", "do shell script \"\(cmd)\" with administrator privileges"])
+            // Cancelling the password prompt is a deliberate choice, not a failure worth an alert.
+            let cancelled = r.err.contains("-128") || r.err.contains("User canceled")
             DispatchQueue.main.async {
-                self?.readSysOff { _ in self?.rearmAutoOff() }
+                guard let self = self else { return }
+                self.sysOffOnAC = onAC
+                self.readSysOff { got in
+                    self.rearmAutoOff()
+                    // The write claimed to work but the value didn't move: surface it rather
+                    // than quietly repainting the old number back into the menu.
+                    guard got != minutes, !cancelled else { return }
+                    self.reportSysOffFailure(r.err)
+                }
             }
         }
+    }
+
+    private func reportSysOffFailure(_ detail: String) {
+        let a = NSAlert()
+        a.alertStyle = .warning
+        a.messageText = t("sys.writeFailed")
+        a.informativeText = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        a.addButton(withTitle: t("btn.ok"))
+        NSApp.activate(ignoringOtherApps: true)
+        a.runModal()
     }
 
     @objc private func toggleAutoOff() {
@@ -1122,10 +1248,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         scheduleAutoOffCheck(after: 1)
     }
 
+    // Longest we will ever sleep between checks. The deadline is derived from the *current*
+    // power profile, so a long wait is only valid while that profile holds: on AC the next
+    // check can be 29 minutes out, and unplugging inside that window drops macOS to the
+    // 5-minute battery profile — the display sleeps (and the lock screen engages) with the
+    // pending check still 20-plus minutes away, silently skipping that whole round.
+    //
+    // The power-source notification is the mechanism meant to catch this; the cap is
+    // defence in depth for when it is missed, and it is only that — a cap above the 60s
+    // lead cannot *guarantee* a catch, it just bounds a 29-minute miss down to one check.
+    // 120s is the compromise: at 300s an unplug landed one second past the battery
+    // deadline; at 120s the same case fires with the full 59s lead. It costs one
+    // `pmset -g` per 2 idle minutes and does not blunt the timing — once idle is within
+    // the cap of the deadline, `threshold - idle` wins and the final check lands on the
+    // exact second it always did.
+    private static let autoOffMaxCheckInterval: TimeInterval = 120
+
     private func scheduleAutoOffCheck(after seconds: TimeInterval) {
         stopAutoOffTimer()
         guard autoOffEnabled else { return }
-        let delay = max(1, seconds)
+        let delay = min(max(1, seconds), Self.autoOffMaxCheckInterval)
         let tm = Timer(timeInterval: delay, repeats: false) { [weak self] _ in self?.autoOffCheck() }
         // This timer must beat the system display-sleep deadline by one minute.
         // A percentage-based tolerance is unsafe here: at a 30-minute setting,
@@ -1417,10 +1559,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    // Read-only query of system idle seconds (since the last keyboard/mouse input); needs no permissions
+    // Read-only query of system idle seconds (since the last keyboard/mouse input); needs no permissions.
+    //
+    // .hidSystemState, NOT .combinedSessionState: the combined source is also reset by
+    // events *posted* by other processes (automation tools, remote-desktop agents, apps
+    // that synthesize mouse moves), so a single stray event can push the idle count below
+    // the real one — while macOS times display sleep off hardware HID idle. On a quiet
+    // machine the two agree; measuring the clock macOS actually uses is what keeps
+    // "one minute early" from drifting on a machine that isn't quiet.
     private func systemIdleSeconds() -> TimeInterval {
-        CGEventSource.secondsSinceLastEventType(.combinedSessionState,
+        CGEventSource.secondsSinceLastEventType(.hidSystemState,
                                                 eventType: CGEventType(rawValue: ~0)!)
+    }
+
+    // Brightness, keyboard backlight and volume are process state we owe the user back, and
+    // caffeinate is a child that outlives us (it reparents to launchd and goes on blocking
+    // sleep forever). Only the Quit menu item used to clean any of that up, so a logout or
+    // an upgrade-in-place while the screen was dark left the panel at brightness 0 and the
+    // audio muted, with the watcher that would have undone it gone.
+    func applicationWillTerminate(_ note: Notification) {
+        cleanUpBeforeExit()
+    }
+
+    // AppKit does not route SIGTERM through applicationWillTerminate, so `pkill SleepBar`
+    // — which is how install.sh and any upgrade-in-place replace a running copy — would
+    // skip the cleanup entirely and orphan the keep-awake caffeinate. Ignore the default
+    // disposition and handle it on the main queue instead.
+    private func installTerminationHandler() {
+        signal(SIGTERM, SIG_IGN)
+        let s = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        s.setEventHandler { [weak self] in
+            self?.cleanUpBeforeExit()
+            NSApp.terminate(nil)
+        }
+        s.resume()
+        sigtermSource = s
+    }
+
+    private func cleanUpBeforeExit() {
+        wakeFromScreenOff()
+        stopKeepAwake()
+    }
+
+    @objc private func systemDidWake() {
+        rearmAutoOff()   // the machine just woke: idle is back to zero, recompute the deadline
     }
 
     @objc private func screenDidLock() {
@@ -1435,7 +1617,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func screenDidUnlock() {
         // Safety net: if a brightness-0 screen-off is still active at unlock, make sure the
         // brightness is back (the watcher normally handles this before the prompt is reached).
-        if !savedBrightness.isEmpty || savedVolume != nil { wakeFromScreenOff() }
+        if !savedBrightness.isEmpty || savedMuted != nil { wakeFromScreenOff() }
         rearmAutoOff()   // unlocked = user is back; restart the early-screen-off watch
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
