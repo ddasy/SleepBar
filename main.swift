@@ -386,12 +386,27 @@ private let l10n: [Lang: [String: String]] = [
     func setBrightness(_ brightness: Float, forKeyboard keyboard: Int64) -> Bool
 }
 
+// A text field that comes up fully selected when clicked, so a value is replaced by typing
+// rather than by backspacing from wherever the caret landed.
+//
+// Selecting when editing begins is not enough for a click: NSTextField hands the click to
+// the field editor's tracking loop, which places its own caret *after* the begin-editing
+// notification has already gone out, so anything selected there is immediately undone.
+// super.mouseDown returns once that loop ends (on mouse-up), which is the first moment a
+// selection sticks.
+private final class SelectAllTextField: NSTextField {
+    override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: event)
+        selectText(nil)
+    }
+}
+
 // Drives every input in the Timed Lock dialog.
 //
-// Three jobs. First, clicking into any box selects what is already in it, so each value is
-// replaced by typing rather than by clearing the old one first. Second, the duration and
-// the clock time are either/or, so typing into one side blanks the other — the dialog can
-// never carry two conflicting answers to "until when". Third, the clock time is two 2-digit
+// Two jobs (clicking into a box selects it — that is SelectAllTextField's, above). First,
+// the duration and the clock time are either/or, so typing into one side blanks the other —
+// the dialog can never carry two conflicting answers to "until when". Second, the clock
+// time is two 2-digit
 // boxes with a fixed ":" label between them, rather than one free-text field: each box
 // takes digits only, and the hour hands focus to the minute on its second digit, so the
 // whole time is four keystrokes with nothing to aim at in between.
@@ -427,15 +442,6 @@ private final class TimedLockFields: NSObject, NSTextFieldDelegate {
         // Both halves are always two digits, so the hour is settled after exactly two
         // keystrokes — hand the caret to the minute then, with nothing to aim at in between.
         if edited === hour, digits.count == 2 { edited.window?.makeFirstResponder(minute) }
-    }
-
-    // Clicking into a box selects what is already there, so correcting a value is just typing
-    // it again — no dragging over the old one, no backspacing from wherever the caret landed.
-    // The hop to the end of the run loop is required: the click sets its own caret after
-    // editing has already begun.
-    func controlTextDidBeginEditing(_ note: Notification) {
-        guard let edited = note.object as? NSTextField else { return }
-        DispatchQueue.main.async { edited.currentEditor()?.selectAll(nil) }
     }
 
     // Leaving a box with a single digit in it means 9 → 09: pad rather than reject, so what
@@ -1610,7 +1616,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return l
         }
         func field(y: CGFloat, _ value: Int, _ placeholder: String) -> NSTextField {
-            let f = NSTextField(frame: NSRect(x: fieldX, y: y - 1, width: fieldW, height: 24))
+            let f = SelectAllTextField(frame: NSRect(x: fieldX, y: y - 1, width: fieldW, height: 24))
             f.alignment = .center
             f.placeholderString = placeholder
             if value > 0 { f.stringValue = "\(value)" }
@@ -1623,7 +1629,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Half of a clock time: two digits, no number formatter (the delegate does the
         // filtering, so a half-typed "1" is never rewritten under the caret).
         func clockBox(x: CGFloat, y: CGFloat, _ value: String, _ placeholder: String) -> NSTextField {
-            let f = NSTextField(frame: NSRect(x: x, y: y - 1, width: boxW, height: 24))
+            let f = SelectAllTextField(frame: NSRect(x: x, y: y - 1, width: boxW, height: 24))
             f.alignment = .center
             f.placeholderString = placeholder
             f.stringValue = value
