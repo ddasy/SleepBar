@@ -83,6 +83,11 @@ private let l10n: [Lang: [String: String]] = [
         "tl.minIdle":          "分钟即锁屏",
         "tl.runFor":           "持续",
         "tl.thenStop":         "分钟后自动停止",
+        "tl.until":            "到",
+        "tl.untilStop":        "自动停止",
+        "tl.savedUntilFmt":    "定时锁屏 (%d 分 / 到 %@)…",
+        "tl.pickOne":          "「持续」和「到点」二选一,填一个另一个会自动清空。",
+        "tl.badTime":          "请输入 24 小时制时间,例如 23:30。",
         "login.errTitle":      "无法设置开机自启",
         "login.errMsg":        "请将 SleepBar.app 移动到「应用程序」文件夹后再试。",
         "section.sysOff":      "系统关屏",
@@ -125,6 +130,11 @@ private let l10n: [Lang: [String: String]] = [
         "tl.minIdle":          "min idle",
         "tl.runFor":           "Run for",
         "tl.thenStop":         "min, then stop",
+        "tl.until":            "Until",
+        "tl.untilStop":        "then stop",
+        "tl.savedUntilFmt":    "Timed Lock (%dm / until %@)…",
+        "tl.pickOne":          "\u{201C}Run for\u{201D} and \u{201C}Until\u{201D} are either/or \u{2014} filling one clears the other.",
+        "tl.badTime":          "Enter a 24-hour time, e.g. 23:30.",
         "login.errTitle":      "Couldn't set Launch at Login",
         "login.errMsg":        "Move SleepBar.app to your Applications folder and try again.",
         "section.sysOff":      "System Display Off",
@@ -167,6 +177,11 @@ private let l10n: [Lang: [String: String]] = [
         "tl.minIdle":          "min inactivo",
         "tl.runFor":           "Durante",
         "tl.thenStop":         "min, luego parar",
+        "tl.until":            "Hasta las",
+        "tl.untilStop":        "detener",
+        "tl.savedUntilFmt":    "Bloqueo programado (%d min / hasta %@)…",
+        "tl.pickOne":          "«Durante» y «Hasta» son excluyentes: al rellenar uno se borra el otro.",
+        "tl.badTime":          "Introduce una hora de 24 h, p. ej. 23:30.",
         "login.errTitle":      "No se pudo configurar el inicio de sesión",
         "login.errMsg":        "Mueve SleepBar.app a la carpeta Aplicaciones e inténtalo de nuevo.",
         "section.sysOff":      "Apagado del sistema",
@@ -209,6 +224,11 @@ private let l10n: [Lang: [String: String]] = [
         "tl.minIdle":          "دقيقة خمول",
         "tl.runFor":           "التشغيل لمدة",
         "tl.thenStop":         "دقيقة ثم التوقّف",
+        "tl.until":            "حتى",
+        "tl.untilStop":        "ثم التوقّف",
+        "tl.savedUntilFmt":    "قفل دوري (%d دقيقة / حتى %@)…",
+        "tl.pickOne":          "«التشغيل لمدة» و«حتى» بديلان: تعبئة أحدهما تمسح الآخر.",
+        "tl.badTime":          "أدخل وقتًا بنظام 24 ساعة، مثل 23:30.",
         "login.errTitle":      "تعذّر تفعيل الفتح عند تسجيل الدخول",
         "login.errMsg":        "انقل SleepBar.app إلى مجلد التطبيقات وحاول مجددًا.",
         "section.sysOff":      "إطفاء شاشة النظام",
@@ -251,6 +271,11 @@ private let l10n: [Lang: [String: String]] = [
         "tl.minIdle":          "min inativo",
         "tl.runFor":           "Durante",
         "tl.thenStop":         "min, depois parar",
+        "tl.until":            "Até",
+        "tl.untilStop":        "parar",
+        "tl.savedUntilFmt":    "Bloqueio programado (%d min / até %@)…",
+        "tl.pickOne":          "«Durante» e «Até» são alternativos: preencher um limpa o outro.",
+        "tl.badTime":          "Digite um horário de 24 h, ex.: 23:30.",
         "login.errTitle":      "Não foi possível ativar a abertura ao fazer login",
         "login.errMsg":        "Mova o SleepBar.app para a pasta Aplicativos e tente novamente.",
         "section.sysOff":      "Desligamento do sistema",
@@ -293,6 +318,11 @@ private let l10n: [Lang: [String: String]] = [
         "tl.minIdle":          "分でロック",
         "tl.runFor":           "継続",
         "tl.thenStop":         "分後に自動停止",
+        "tl.until":            "終了時刻",
+        "tl.untilStop":        "に自動停止",
+        "tl.savedUntilFmt":    "定期ロック (%d 分 / %@ まで)…",
+        "tl.pickOne":          "「継続」と「終了時刻」はどちらか一方です。片方を入力すると他方は消えます。",
+        "tl.badTime":          "24 時間制で入力してください(例: 23:30)。",
         "login.errTitle":      "ログイン時の起動を設定できません",
         "login.errMsg":        "SleepBar.app を「アプリケーション」フォルダに移動してからもう一度お試しください。",
         "section.sysOff":      "システムの画面オフ",
@@ -335,6 +365,11 @@ private let l10n: [Lang: [String: String]] = [
         "tl.minIdle":          "Min. Inaktivität",
         "tl.runFor":           "Dauer",
         "tl.thenStop":         "Min., dann stoppen",
+        "tl.until":            "Bis",
+        "tl.untilStop":        "dann stoppen",
+        "tl.savedUntilFmt":    "Zeitgesteuerte Sperre (%d Min. / bis %@)…",
+        "tl.pickOne":          "„Dauer“ und „Bis“ schließen sich aus – eines auszufüllen leert das andere.",
+        "tl.badTime":          "Bitte eine 24-Stunden-Zeit eingeben, z. B. 23:30.",
         "login.errTitle":      "„Bei der Anmeldung öffnen“ konnte nicht aktiviert werden",
         "login.errMsg":        "Verschiebe SleepBar.app in den Ordner „Programme“ und versuche es erneut.",
         "section.sysOff":      "System-Bildschirm aus",
@@ -349,6 +384,24 @@ private let l10n: [Lang: [String: String]] = [
 @objc private protocol KeyboardBacklight {
     func brightnessForKeyboard(_ keyboard: Int64) -> Float
     func setBrightness(_ brightness: Float, forKeyboard keyboard: Int64) -> Bool
+}
+
+// Keeps the Timed Lock dialog's two end-time fields mutually exclusive: typing into one
+// blanks the other, so the dialog can never carry two conflicting answers to "until when".
+private final class ExclusiveFields: NSObject, NSTextFieldDelegate {
+    private let a: NSTextField, b: NSTextField
+    init(_ a: NSTextField, _ b: NSTextField) {
+        self.a = a; self.b = b
+        super.init()
+        a.delegate = self; b.delegate = self
+    }
+    func controlTextDidChange(_ note: Notification) {
+        guard let edited = note.object as? NSTextField else { return }
+        let other = edited === a ? b : a
+        guard !edited.stringValue.trimmingCharacters(in: .whitespaces).isEmpty,
+              !other.stringValue.isEmpty else { return }
+        other.stringValue = ""
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -371,6 +424,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var tlActive = false
     private var tlInterval: Int = 0       // lock interval (minutes), also remembers the last value
     private var tlWindowMin: Int = 0      // window length (minutes), also remembers the last value
+    private var tlUntil: String = ""      // "23:30" when the window was given as a clock time ("" = a duration was used)
     private var tlWindowEnd: Date?        // absolute end time of the window
     private var tlTimer: Timer?           // adaptive idle check (not a per-second poll)
     private var tlWindowTimer: Timer?     // one-shot stop when the window ends
@@ -468,6 +522,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         tlInterval  = UserDefaults.standard.integer(forKey: "tlInterval")
         tlWindowMin = UserDefaults.standard.integer(forKey: "tlWindowMin")
+        tlUntil     = UserDefaults.standard.string(forKey: "tlUntil") ?? ""
         keepAwake   = UserDefaults.standard.bool(forKey: "keepAwake")
         autoOffEnabled = UserDefaults.standard.bool(forKey: "autoScreenOff")
 
@@ -1467,6 +1522,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let left = format(max(0, Int(end.timeIntervalSinceNow)))
             return String(format: t("tl.activeFmt"), tlInterval, left)
         }
+        if tlInterval > 0 && !tlUntil.isEmpty {
+            return String(format: t("tl.savedUntilFmt"), tlInterval, tlUntil)
+        }
         if tlInterval > 0 && tlWindowMin > 0 {
             return String(format: t("tl.savedFmt"), tlInterval, durationTitle(tlWindowMin))
         }
@@ -1481,14 +1539,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let alert = NSAlert()
         alert.icon = NSImage(systemSymbolName: "lock.rotation", accessibilityDescription: nil)
         alert.messageText = t("section.timedLock")
-        alert.informativeText = t("tl.note")
+        alert.informativeText = t("tl.note") + "\n" + t("tl.pickOne")
         alert.addButton(withTitle: t("btn.start"))
         alert.addButton(withTitle: t("btn.cancel"))
 
-        // Two rows of "short sentence + inline number":
-        // "Lock after [5] min idle" / "Run for [120] min, then stop"
+        // Three rows of "short sentence + inline value":
+        // "Lock after [5] min idle" / "Run for [120] min, then stop" / "Until [23:30] then stop".
+        // The last two are either/or — the window is one end time, given either way.
         let leadW: CGFloat = 100, fieldX: CGFloat = 106, fieldW: CGFloat = 56, tailX: CGFloat = 168
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 330, height: 78))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 330, height: 114))
         func text(_ s: String, x: CGFloat, y: CGFloat, w: CGFloat, _ align: NSTextAlignment) -> NSTextField {
             let l = NSTextField(labelWithString: s)
             l.frame = NSRect(x: x, y: y, width: w, height: 22)
@@ -1506,35 +1565,100 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             f.formatter = fmt
             return f
         }
-        let intervalField = field(y: 44, tlInterval, "5")
-        let windowField   = field(y: 8,  tlWindowMin, "120")
+        // A clock time is free text, not a bounded count, so it gets no number formatter.
+        func clockField(y: CGFloat, _ value: String) -> NSTextField {
+            let f = NSTextField(frame: NSRect(x: fieldX, y: y - 1, width: fieldW, height: 24))
+            f.alignment = .center
+            f.placeholderString = "23:30"
+            f.stringValue = value
+            return f
+        }
+        let intervalField = field(y: 80, tlInterval, "5")
+        // Only one of the two end-time fields is ever pre-filled: whichever was used last.
+        let windowField   = field(y: 44, tlUntil.isEmpty ? tlWindowMin : 0, "120")
+        let untilField    = clockField(y: 8, tlUntil)
         // Row 1: lock after [5] min idle
-        container.addSubview(text(t("tl.lockAfter"), x: 0, y: 44, w: leadW, .right))
+        container.addSubview(text(t("tl.lockAfter"), x: 0, y: 80, w: leadW, .right))
         container.addSubview(intervalField)
-        container.addSubview(text(t("tl.minIdle"), x: tailX, y: 44, w: 330 - tailX, .left))
+        container.addSubview(text(t("tl.minIdle"), x: tailX, y: 80, w: 330 - tailX, .left))
         // Row 2: run for [120] min, then stop
-        container.addSubview(text(t("tl.runFor"), x: 0, y: 8, w: leadW, .right))
+        container.addSubview(text(t("tl.runFor"), x: 0, y: 44, w: leadW, .right))
         container.addSubview(windowField)
-        container.addSubview(text(t("tl.thenStop"), x: tailX, y: 8, w: 330 - tailX, .left))
+        container.addSubview(text(t("tl.thenStop"), x: tailX, y: 44, w: 330 - tailX, .left))
+        // Row 3: until [23:30] then stop — mutually exclusive with row 2
+        container.addSubview(text(t("tl.until"), x: 0, y: 8, w: leadW, .right))
+        container.addSubview(untilField)
+        container.addSubview(text(t("tl.untilStop"), x: tailX, y: 8, w: 330 - tailX, .left))
         intervalField.nextKeyView = windowField
+        windowField.nextKeyView = untilField
+        untilField.nextKeyView = intervalField
+        // Held for the life of the modal: NSTextField does not retain its delegate.
+        let exclusive = ExclusiveFields(windowField, untilField)
         alert.accessoryView = container
 
         NSApp.activate(ignoringOtherApps: true)
         alert.window.initialFirstResponder = intervalField
-        if alert.runModal() == .alertFirstButtonReturn {
-            let iv = Int(intervalField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
-            let wv = Int(windowField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
-            guard iv > 0, wv > 0 else { return }
-            startTimedLock(interval: iv, window: max(wv, iv))  // window must fit at least one interval
+        let confirmed = alert.runModal() == .alertFirstButtonReturn
+        withExtendedLifetime(exclusive) {}
+        guard confirmed else { return }
+        let iv = Int(intervalField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
+        guard iv > 0 else { return }
+        let clock = untilField.stringValue.trimmingCharacters(in: .whitespaces)
+        if !clock.isEmpty {
+            guard let until = parseClock(clock) else { badTimeAlert(); return }
+            // window must fit at least one interval, or it would stop before ever locking
+            startTimedLock(interval: iv, window: max(until.minutes, iv), until: until.text)
+            return
         }
+        let wv = Int(windowField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
+        guard wv > 0 else { return }
+        startTimedLock(interval: iv, window: max(wv, iv), until: "")
     }
 
-    private func startTimedLock(interval: Int, window: Int) {
+    // "23:30" / "23:30" with a full-width colon / "2330" / "9" → how many minutes from now
+    // until the clock next reads that, plus the normalized text to show and remember. A
+    // time that has already passed today means tomorrow, so the answer is always ahead.
+    private func parseClock(_ raw: String) -> (minutes: Int, text: String)? {
+        let s = raw.trimmingCharacters(in: .whitespaces)
+                   .replacingOccurrences(of: "：", with: ":")
+        var h = -1, m = -1
+        if s.contains(":") {
+            let parts = s.split(separator: ":", omittingEmptySubsequences: false)
+            guard parts.count == 2, let a = Int(parts[0]), let b = Int(parts[1]) else { return nil }
+            h = a; m = b
+        } else if s.count == 4, let v = Int(s) {
+            h = v / 100; m = v % 100
+        } else if s.count <= 2, let v = Int(s) {
+            h = v; m = 0
+        } else { return nil }
+        guard (0...23).contains(h), (0...59).contains(m) else { return nil }
+
+        let cal = Calendar.current, now = Date()
+        guard var target = cal.date(bySettingHour: h, minute: m, second: 0, of: now) else { return nil }
+        if target <= now { target = cal.date(byAdding: .day, value: 1, to: target) ?? target }
+        // Round up, never down: "stop at 23:30" should stop just after 23:30, not at 23:29.
+        let minutes = max(1, Int((target.timeIntervalSince(now) / 60).rounded(.up)))
+        return (minutes, String(format: "%02d:%02d", h, m))
+    }
+
+    private func badTimeAlert() {
+        let a = NSAlert()
+        a.icon = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
+        a.messageText = t("section.timedLock")
+        a.informativeText = t("tl.badTime")
+        a.addButton(withTitle: t("btn.ok"))
+        NSApp.activate(ignoringOtherApps: true)
+        a.runModal()
+    }
+
+    private func startTimedLock(interval: Int, window: Int, until: String) {
         stopCaffeinateIfRunning()          // stop caffeinate (mutually exclusive)
         tlInterval  = interval
         tlWindowMin = window
+        tlUntil     = until                // "" when the window came from the duration field
         UserDefaults.standard.set(interval, forKey: "tlInterval")
         UserDefaults.standard.set(window, forKey: "tlWindowMin")
+        UserDefaults.standard.set(until, forKey: "tlUntil")
 
         tlActive = true
         tlWindowEnd = Date().addingTimeInterval(TimeInterval(window * 60))
