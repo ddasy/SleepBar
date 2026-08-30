@@ -183,6 +183,9 @@ A: No. The screen stays on **only** when you actively pick a duration or "Never,
 **Q: Does it survive a reboot?**
 A: Yes. The installer registers SleepBar as a Login Item, so it reappears in the menu bar after you log in. Don't want that? Uncheck **Launch at Login** in the menu.
 
+**Q: I've installed it both ways — DMG *and* the script. Now what?**
+A: Two copies means two Login Items, two icons in Spotlight, and two moons in the menu bar, with an update landing on only one of them. Both routes clean this up: `install.sh` moves a `/Applications` copy to the Trash before installing, and the running app offers to do the same if it spots the other one (it asks first, moves rather than deletes, and remembers a "keep both"). Only an installed copy ever offers — a build run from a folder, or the app inside a mounted DMG, never touches your real install.
+
 **Q: Does it phone home?**
 A: One request, at most once every 14 days: an anonymous `GET` of GitHub's public releases endpoint to compare version numbers. No identifiers, no analytics, and nothing is ever downloaded or installed automatically. Dev builds started by `run.sh` don't check at all.
 

@@ -102,12 +102,25 @@ PLIST
 codesign --force --deep --sign - "$APP_DIR" 2>/dev/null || true
 
 # 4) Clean up older installs (bare binary in Application Support + LaunchAgent)
-# A DMG install lives in /Applications; leaving it there means two SleepBar icons and
-# two menu-bar moons. Point it out rather than deleting someone else's copy silently.
-if [ -d "/Applications/$APP_NAME.app" ]; then
-  echo "!! /Applications/$APP_NAME.app also exists (installed from the DMG)."
-  echo "   Two copies = two icons in Launchpad/Spotlight. Remove the other one with:"
-  echo "     rm -rf \"/Applications/$APP_NAME.app\""
+# A DMG install lives in /Applications. Leaving it there means two Login Items, two icons
+# in Launchpad/Spotlight and two moons in the menu bar, with updates landing on only one of
+# them — so retire it. It goes to the Trash rather than being deleted: it is the same app
+# the user just asked to install, and a wrong guess costs them nothing.
+OTHER="/Applications/$APP_NAME.app"
+if [ -d "$OTHER" ]; then
+  echo "==> Found an earlier copy at $OTHER (installed from the DMG)"
+  # Drop its Login Item before it goes: the registration is per bundle path, and a trashed
+  # app that is still registered leaves a broken entry behind in Login Items.
+  "$OTHER/Contents/MacOS/$APP_NAME" --unregister-login 2>/dev/null || true
+  pkill -x "$APP_NAME" 2>/dev/null || true
+  sleep 0.3
+  TRASHED="$HOME/.Trash/$APP_NAME $(date +%Y-%m-%d-%H%M%S).app"
+  if mv "$OTHER" "$TRASHED" 2>/dev/null; then
+    echo "    Moved to the Trash — recover it from there if that wasn't what you wanted."
+  else
+    echo "!!  Couldn't move it (no write access to /Applications?). Remove it yourself:"
+    echo "      rm -rf \"$OTHER\""
+  fi
 fi
 
 launchctl unload "$OLD_PLIST" 2>/dev/null || true

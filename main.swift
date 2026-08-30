@@ -95,6 +95,10 @@ private let l10n: [Lang: [String: String]] = [
         "sys.autoOff":         "提前 1 分钟自动息屏",
         "sys.writeFailed":     "屏幕关闭时间未能修改",
         "update.availableFmt": "有新版本 %@ · 点击下载",
+        "dupe.title":          "发现两份 SleepBar",
+        "dupe.msg":            "另一份装在:\n%@\n\n两份会各自开机自启,菜单栏会出现两个月亮。要把那一份移到废纸篓吗?可以随时从废纸篓恢复。",
+        "dupe.trash":          "移到废纸篓",
+        "dupe.keep":           "都保留",
     ],
     .en: [
         "section.screenOff":   "Screen Off Timer",
@@ -142,6 +146,10 @@ private let l10n: [Lang: [String: String]] = [
         "sys.autoOff":         "Auto Screen Off 1 Min Early",
         "sys.writeFailed":     "Couldn't change the display-off time",
         "update.availableFmt": "Version %@ available · click to download",
+        "dupe.title":          "Two copies of SleepBar",
+        "dupe.msg":            "Another copy is installed at:\n%@\n\nBoth will start at login, and you\u{2019}ll get two moons in the menu bar. Move that one to the Trash? You can put it back from there at any time.",
+        "dupe.trash":          "Move to Trash",
+        "dupe.keep":           "Keep Both",
     ],
     .es: [
         "section.screenOff":   "Temporizador de pantalla",
@@ -189,6 +197,10 @@ private let l10n: [Lang: [String: String]] = [
         "sys.autoOff":         "Apagar pantalla 1 min antes",
         "sys.writeFailed":     "No se pudo cambiar el tiempo de apagado",
         "update.availableFmt": "Versión %@ disponible · haz clic para descargar",
+        "dupe.title":          "Dos copias de SleepBar",
+        "dupe.msg":            "Hay otra copia instalada en:\n%@\n\nLas dos se abrirán al iniciar sesión y verás dos lunas en la barra de menús. ¿Mover esa a la Papelera? Puedes recuperarla cuando quieras.",
+        "dupe.trash":          "Mover a la Papelera",
+        "dupe.keep":           "Conservar ambas",
     ],
     .ar: [
         "section.screenOff":   "مؤقّت إطفاء الشاشة",
@@ -236,6 +248,10 @@ private let l10n: [Lang: [String: String]] = [
         "sys.autoOff":         "إطفاء تلقائي قبل دقيقة",
         "sys.writeFailed":     "تعذّر تغيير مدة إطفاء الشاشة",
         "update.availableFmt": "الإصدار %@ متاح · انقر للتنزيل",
+        "dupe.title":          "نسختان من SleepBar",
+        "dupe.msg":            "توجد نسخة أخرى في:\n%@\n\nكلتاهما ستبدأ عند تسجيل الدخول وسيظهر قمران في شريط القوائم. هل تنقل تلك النسخة إلى المهملات؟ يمكنك استرجاعها في أي وقت.",
+        "dupe.trash":          "النقل إلى المهملات",
+        "dupe.keep":           "الإبقاء على الاثنتين",
     ],
     .pt: [
         "section.screenOff":   "Temporizador de tela",
@@ -283,6 +299,10 @@ private let l10n: [Lang: [String: String]] = [
         "sys.autoOff":         "Desligar a tela 1 min antes",
         "sys.writeFailed":     "Não foi possível alterar o tempo de desligamento",
         "update.availableFmt": "Versão %@ disponível · clique para baixar",
+        "dupe.title":          "Duas cópias do SleepBar",
+        "dupe.msg":            "Há outra cópia instalada em:\n%@\n\nAs duas vão iniciar no login e você verá duas luas na barra de menus. Mover essa para o Lixo? Dá para restaurar quando quiser.",
+        "dupe.trash":          "Mover para o Lixo",
+        "dupe.keep":           "Manter as duas",
     ],
     .ja: [
         "section.screenOff":   "画面オフタイマー",
@@ -330,6 +350,10 @@ private let l10n: [Lang: [String: String]] = [
         "sys.autoOff":         "1分前に自動で画面オフ",
         "sys.writeFailed":     "画面オフ時間を変更できませんでした",
         "update.availableFmt": "新しいバージョン %@ · クリックしてダウンロード",
+        "dupe.title":          "SleepBar が 2 つあります",
+        "dupe.msg":            "もう 1 つはここにあります:\n%@\n\n両方がログイン時に起動し、メニューバーに月が 2 つ出ます。そちらをゴミ箱に入れますか?いつでも元に戻せます。",
+        "dupe.trash":          "ゴミ箱に入れる",
+        "dupe.keep":           "両方残す",
     ],
     .de: [
         "section.screenOff":   "Bildschirm-Timer",
@@ -377,6 +401,10 @@ private let l10n: [Lang: [String: String]] = [
         "sys.autoOff":         "1 Min. vorher Bildschirm aus",
         "sys.writeFailed":     "Bildschirm-Auszeit konnte nicht geändert werden",
         "update.availableFmt": "Version %@ verfügbar · zum Herunterladen klicken",
+        "dupe.title":          "Zwei Kopien von SleepBar",
+        "dupe.msg":            "Eine weitere Kopie liegt unter:\n%@\n\nBeide starten bei der Anmeldung, und in der Menüleiste erscheinen zwei Monde. Diese Kopie in den Papierkorb legen? Du kannst sie jederzeit zurückholen.",
+        "dupe.trash":          "In den Papierkorb",
+        "dupe.keep":           "Beide behalten",
     ],
 ]
 
@@ -623,6 +651,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if keepAwake { startKeepAwake() }   // restore the always-on keep-awake assertion
         readSysOff { [weak self] _ in self?.rearmAutoOff() }   // populate the menu; arm auto screen-off
         scheduleUpdateCheck()
+        // After the menu bar item is up, so the alert isn't the first thing on screen.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.offerToRemoveDuplicate() }
     }
 
     // MARK: - Localization
@@ -1863,6 +1893,70 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
         scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle just reset to zero, re-arm
+    }
+
+    // MARK: - Duplicate installs
+
+    // The DMG installs into /Applications, install.sh into ~/Applications. Anyone who has
+    // used both ends up with two copies: two Login Items, two moons in the menu bar, and an
+    // update applied to only one of them. install.sh cleans this up from its side; the DMG
+    // has no installer to do that, so the copy that is running offers to tidy it here.
+    //
+    // Offers — never acts on its own. The other copy goes to the Trash rather than being
+    // deleted, so a wrong guess costs nothing, and declining is remembered.
+    private func offerToRemoveDuplicate() {
+        guard isAppBundle, !UserDefaults.standard.bool(forKey: "keepDuplicate") else { return }
+        // With two copies running, both would put up this alert about each other. (A count of
+        // zero means LaunchServices doesn't know about us — a binary run straight from a
+        // build directory — which is not two copies either.)
+        let id = Bundle.main.bundleIdentifier ?? ""
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: id).count < 2 else { return }
+
+        let fm = FileManager.default
+        let mine = Bundle.main.bundleURL.resolvingSymlinksInPath()
+        let others = [URL(fileURLWithPath: "/Applications/SleepBar.app"),
+                      fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications/SleepBar.app")]
+        // Only an installed copy may call another one a duplicate. A build run out of a
+        // scratch directory, or the copy inside a mounted DMG before it has been dragged
+        // anywhere, must never offer to bin the real install.
+        guard others.contains(where: { $0.resolvingSymlinksInPath() == mine }),
+              let other = others.first(where: {
+                  fm.fileExists(atPath: $0.path) && $0.resolvingSymlinksInPath() != mine
+              }) else { return }
+
+        let a = NSAlert()
+        a.icon = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
+        a.messageText = t("dupe.title")
+        a.informativeText = String(format: t("dupe.msg"), other.path)
+        a.addButton(withTitle: t("dupe.trash"))
+        a.addButton(withTitle: t("dupe.keep"))
+        NSApp.activate(ignoringOtherApps: true)
+        guard a.runModal() == .alertFirstButtonReturn else {
+            UserDefaults.standard.set(true, forKey: "keepDuplicate")   // don't ask again
+            return
+        }
+        // Drop its Login Item first: the registration is per bundle path, and a trashed app
+        // that is still registered leaves a broken entry behind in Login Items.
+        let helper = other.appendingPathComponent("Contents/MacOS/SleepBar")
+        if fm.isExecutableFile(atPath: helper.path) {
+            let p = Process()
+            p.executableURL = helper
+            p.arguments = ["--unregister-login"]
+            try? p.run()
+            p.waitUntilExit()
+        }
+        NSWorkspace.shared.recycle([other]) { [weak self] _, err in
+            guard let self = self, let err = err else { return }
+            DispatchQueue.main.async {
+                // /Applications may not be writable by this user; say so rather than
+                // appearing to have done something.
+                let f = NSAlert()
+                f.messageText = self.t("dupe.title")
+                f.informativeText = "\(other.path)\n\n\(err.localizedDescription)"
+                f.addButton(withTitle: self.t("btn.ok"))
+                f.runModal()
+            }
+        }
     }
 
     // MARK: - Update check (notify only; never downloads or installs anything)
