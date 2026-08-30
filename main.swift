@@ -386,32 +386,37 @@ private let l10n: [Lang: [String: String]] = [
     func setBrightness(_ brightness: Float, forKeyboard keyboard: Int64) -> Bool
 }
 
-// Drives the Timed Lock dialog's end-time inputs.
+// Drives every input in the Timed Lock dialog.
 //
-// Two jobs. First, the duration and the clock time are either/or, so typing into one side
-// blanks the other — the dialog can never carry two conflicting answers to "until when".
-// Second, the clock time is two 2-digit boxes with a fixed ":" label between them, rather
-// than one free-text field: each box takes digits only, and the hour hands focus to the
-// minute as soon as it can't take another digit, so the whole time is four keystrokes with
-// nothing to aim at in between.
+// Three jobs. First, clicking into any box selects what is already in it, so each value is
+// replaced by typing rather than by clearing the old one first. Second, the duration and
+// the clock time are either/or, so typing into one side blanks the other — the dialog can
+// never carry two conflicting answers to "until when". Third, the clock time is two 2-digit
+// boxes with a fixed ":" label between them, rather than one free-text field: each box
+// takes digits only, and the hour hands focus to the minute on its second digit, so the
+// whole time is four keystrokes with nothing to aim at in between.
 private final class TimedLockFields: NSObject, NSTextFieldDelegate {
-    private let duration: NSTextField, hour: NSTextField, minute: NSTextField
+    private let interval: NSTextField, duration: NSTextField
+    private let hour: NSTextField, minute: NSTextField
 
-    init(duration: NSTextField, hour: NSTextField, minute: NSTextField) {
-        self.duration = duration; self.hour = hour; self.minute = minute
+    init(interval: NSTextField, duration: NSTextField, hour: NSTextField, minute: NSTextField) {
+        self.interval = interval; self.duration = duration
+        self.hour = hour; self.minute = minute
         super.init()
-        for f in [duration, hour, minute] { f.delegate = self }
+        for f in [interval, duration, hour, minute] { f.delegate = self }
     }
 
     func controlTextDidChange(_ note: Notification) {
         guard let edited = note.object as? NSTextField else { return }
 
-        guard edited === hour || edited === minute else {
+        // The idle interval is its own thing — it pairs with either end time, never replaces one.
+        if edited === duration {
             if !edited.stringValue.trimmingCharacters(in: .whitespaces).isEmpty {
                 clear(hour); clear(minute)
             }
             return
         }
+        guard edited === hour || edited === minute else { return }
 
         // Digits only, two at most: ":" lives in a label, so it can't be deleted or doubled.
         let digits = String(edited.stringValue.filter { $0.isNumber }.prefix(2))
@@ -424,12 +429,12 @@ private final class TimedLockFields: NSObject, NSTextFieldDelegate {
         if edited === hour, digits.count == 2 { edited.window?.makeFirstResponder(minute) }
     }
 
-    // Clicking back into a box selects what is already there, so fixing a wrong hour is just
-    // typing the two digits again — no dragging over the old value first. The hop to the end
-    // of the run loop is required: the click sets its own caret after editing has begun.
+    // Clicking into a box selects what is already there, so correcting a value is just typing
+    // it again — no dragging over the old one, no backspacing from wherever the caret landed.
+    // The hop to the end of the run loop is required: the click sets its own caret after
+    // editing has already begun.
     func controlTextDidBeginEditing(_ note: Notification) {
-        guard let edited = note.object as? NSTextField,
-              edited === hour || edited === minute else { return }
+        guard let edited = note.object as? NSTextField else { return }
         DispatchQueue.main.async { edited.currentEditor()?.selectAll(nil) }
     }
 
@@ -1649,7 +1654,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hourField.nextKeyView = minuteField
         minuteField.nextKeyView = intervalField
         // Held for the life of the modal: NSTextField does not retain its delegate.
-        let exclusive = TimedLockFields(duration: windowField, hour: hourField, minute: minuteField)
+        let exclusive = TimedLockFields(interval: intervalField, duration: windowField,
+                                        hour: hourField, minute: minuteField)
         alert.accessoryView = container
 
         NSApp.activate(ignoringOtherApps: true)
