@@ -87,7 +87,7 @@ private let l10n: [Lang: [String: String]] = [
         "tl.untilStop":        "自动停止",
         "tl.savedUntilFmt":    "定时锁屏 (%d 分 / 到 %@)…",
         "tl.pickOne":          "「持续」和「到点」二选一,填一个另一个会自动清空。",
-        "tl.badTime":          "请输入 24 小时制时间,例如 23:30。",
+        "tl.badTime":          "请把小时和分钟都填成两位数,例如 23:30。",
         "login.errTitle":      "无法设置开机自启",
         "login.errMsg":        "请将 SleepBar.app 移动到「应用程序」文件夹后再试。",
         "section.sysOff":      "系统关屏",
@@ -134,7 +134,7 @@ private let l10n: [Lang: [String: String]] = [
         "tl.untilStop":        "then stop",
         "tl.savedUntilFmt":    "Timed Lock (%dm / until %@)…",
         "tl.pickOne":          "\u{201C}Run for\u{201D} and \u{201C}Until\u{201D} are either/or \u{2014} filling one clears the other.",
-        "tl.badTime":          "Enter a 24-hour time, e.g. 23:30.",
+        "tl.badTime":          "Fill in both the hour and the minute as two digits, e.g. 23:30.",
         "login.errTitle":      "Couldn't set Launch at Login",
         "login.errMsg":        "Move SleepBar.app to your Applications folder and try again.",
         "section.sysOff":      "System Display Off",
@@ -181,7 +181,7 @@ private let l10n: [Lang: [String: String]] = [
         "tl.untilStop":        "detener",
         "tl.savedUntilFmt":    "Bloqueo programado (%d min / hasta %@)…",
         "tl.pickOne":          "«Durante» y «Hasta» son excluyentes: al rellenar uno se borra el otro.",
-        "tl.badTime":          "Introduce una hora de 24 h, p. ej. 23:30.",
+        "tl.badTime":          "Rellena la hora y los minutos con dos cifras, p. ej. 23:30.",
         "login.errTitle":      "No se pudo configurar el inicio de sesión",
         "login.errMsg":        "Mueve SleepBar.app a la carpeta Aplicaciones e inténtalo de nuevo.",
         "section.sysOff":      "Apagado del sistema",
@@ -228,7 +228,7 @@ private let l10n: [Lang: [String: String]] = [
         "tl.untilStop":        "ثم التوقّف",
         "tl.savedUntilFmt":    "قفل دوري (%d دقيقة / حتى %@)…",
         "tl.pickOne":          "«التشغيل لمدة» و«حتى» بديلان: تعبئة أحدهما تمسح الآخر.",
-        "tl.badTime":          "أدخل وقتًا بنظام 24 ساعة، مثل 23:30.",
+        "tl.badTime":          "أدخل الساعة والدقيقة برقمين، مثل 23:30.",
         "login.errTitle":      "تعذّر تفعيل الفتح عند تسجيل الدخول",
         "login.errMsg":        "انقل SleepBar.app إلى مجلد التطبيقات وحاول مجددًا.",
         "section.sysOff":      "إطفاء شاشة النظام",
@@ -275,7 +275,7 @@ private let l10n: [Lang: [String: String]] = [
         "tl.untilStop":        "parar",
         "tl.savedUntilFmt":    "Bloqueio programado (%d min / até %@)…",
         "tl.pickOne":          "«Durante» e «Até» são alternativos: preencher um limpa o outro.",
-        "tl.badTime":          "Digite um horário de 24 h, ex.: 23:30.",
+        "tl.badTime":          "Preencha hora e minuto com dois dígitos, ex.: 23:30.",
         "login.errTitle":      "Não foi possível ativar a abertura ao fazer login",
         "login.errMsg":        "Mova o SleepBar.app para a pasta Aplicativos e tente novamente.",
         "section.sysOff":      "Desligamento do sistema",
@@ -322,7 +322,7 @@ private let l10n: [Lang: [String: String]] = [
         "tl.untilStop":        "に自動停止",
         "tl.savedUntilFmt":    "定期ロック (%d 分 / %@ まで)…",
         "tl.pickOne":          "「継続」と「終了時刻」はどちらか一方です。片方を入力すると他方は消えます。",
-        "tl.badTime":          "24 時間制で入力してください(例: 23:30)。",
+        "tl.badTime":          "時と分を 2 桁ずつ入力してください(例: 23:30)。",
         "login.errTitle":      "ログイン時の起動を設定できません",
         "login.errMsg":        "SleepBar.app を「アプリケーション」フォルダに移動してからもう一度お試しください。",
         "section.sysOff":      "システムの画面オフ",
@@ -369,7 +369,7 @@ private let l10n: [Lang: [String: String]] = [
         "tl.untilStop":        "dann stoppen",
         "tl.savedUntilFmt":    "Zeitgesteuerte Sperre (%d Min. / bis %@)…",
         "tl.pickOne":          "„Dauer“ und „Bis“ schließen sich aus – eines auszufüllen leert das andere.",
-        "tl.badTime":          "Bitte eine 24-Stunden-Zeit eingeben, z. B. 23:30.",
+        "tl.badTime":          "Stunde und Minute bitte zweistellig eingeben, z. B. 23:30.",
         "login.errTitle":      "„Bei der Anmeldung öffnen“ konnte nicht aktiviert werden",
         "login.errMsg":        "Verschiebe SleepBar.app in den Ordner „Programme“ und versuche es erneut.",
         "section.sysOff":      "System-Bildschirm aus",
@@ -386,21 +386,69 @@ private let l10n: [Lang: [String: String]] = [
     func setBrightness(_ brightness: Float, forKeyboard keyboard: Int64) -> Bool
 }
 
-// Keeps the Timed Lock dialog's two end-time fields mutually exclusive: typing into one
-// blanks the other, so the dialog can never carry two conflicting answers to "until when".
-private final class ExclusiveFields: NSObject, NSTextFieldDelegate {
-    private let a: NSTextField, b: NSTextField
-    init(_ a: NSTextField, _ b: NSTextField) {
-        self.a = a; self.b = b
+// Drives the Timed Lock dialog's end-time inputs.
+//
+// Two jobs. First, the duration and the clock time are either/or, so typing into one side
+// blanks the other — the dialog can never carry two conflicting answers to "until when".
+// Second, the clock time is two 2-digit boxes with a fixed ":" label between them, rather
+// than one free-text field: each box takes digits only, and the hour hands focus to the
+// minute as soon as it can't take another digit, so the whole time is four keystrokes with
+// nothing to aim at in between.
+private final class TimedLockFields: NSObject, NSTextFieldDelegate {
+    private let duration: NSTextField, hour: NSTextField, minute: NSTextField
+
+    init(duration: NSTextField, hour: NSTextField, minute: NSTextField) {
+        self.duration = duration; self.hour = hour; self.minute = minute
         super.init()
-        a.delegate = self; b.delegate = self
+        for f in [duration, hour, minute] { f.delegate = self }
     }
+
     func controlTextDidChange(_ note: Notification) {
         guard let edited = note.object as? NSTextField else { return }
-        let other = edited === a ? b : a
-        guard !edited.stringValue.trimmingCharacters(in: .whitespaces).isEmpty,
-              !other.stringValue.isEmpty else { return }
-        other.stringValue = ""
+
+        guard edited === hour || edited === minute else {
+            if !edited.stringValue.trimmingCharacters(in: .whitespaces).isEmpty {
+                clear(hour); clear(minute)
+            }
+            return
+        }
+
+        // Digits only, two at most: ":" lives in a label, so it can't be deleted or doubled.
+        let digits = String(edited.stringValue.filter { $0.isNumber }.prefix(2))
+        if digits != edited.stringValue { setText(digits, in: edited) }
+        guard !digits.isEmpty else { return }
+        clear(duration)
+
+        // Both halves are always two digits, so the hour is settled after exactly two
+        // keystrokes — hand the caret to the minute then, with nothing to aim at in between.
+        if edited === hour, digits.count == 2 { edited.window?.makeFirstResponder(minute) }
+    }
+
+    // Clicking back into a box selects what is already there, so fixing a wrong hour is just
+    // typing the two digits again — no dragging over the old value first. The hop to the end
+    // of the run loop is required: the click sets its own caret after editing has begun.
+    func controlTextDidBeginEditing(_ note: Notification) {
+        guard let edited = note.object as? NSTextField,
+              edited === hour || edited === minute else { return }
+        DispatchQueue.main.async { edited.currentEditor()?.selectAll(nil) }
+    }
+
+    // Leaving a box with a single digit in it means 9 → 09: pad rather than reject, so what
+    // is on screen is always the two-digit value that will actually be used.
+    func controlTextDidEndEditing(_ note: Notification) {
+        guard let edited = note.object as? NSTextField, edited === hour || edited === minute,
+              edited.stringValue.count == 1 else { return }
+        edited.stringValue = "0" + edited.stringValue
+    }
+
+    private func setText(_ s: String, in f: NSTextField) {
+        f.stringValue = s
+        f.currentEditor()?.selectedRange = NSRange(location: s.count, length: 0)
+    }
+
+    private func clear(_ f: NSTextField) {
+        guard !f.stringValue.isEmpty else { return }
+        setText("", in: f)
     }
 }
 
@@ -1546,8 +1594,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Three rows of "short sentence + inline value":
         // "Lock after [5] min idle" / "Run for [120] min, then stop" / "Until [23:30] then stop".
         // The last two are either/or — the window is one end time, given either way.
-        let leadW: CGFloat = 100, fieldX: CGFloat = 106, fieldW: CGFloat = 56, tailX: CGFloat = 168
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 330, height: 114))
+        let leadW: CGFloat = 100, fieldX: CGFloat = 106, fieldW: CGFloat = 80, tailX: CGFloat = 192
+        let boxW: CGFloat = 34, colonW: CGFloat = 12     // [23] : [30] adds up to fieldW
+        let width: CGFloat = 372
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 114))
         func text(_ s: String, x: CGFloat, y: CGFloat, w: CGFloat, _ align: NSTextAlignment) -> NSTextField {
             let l = NSTextField(labelWithString: s)
             l.frame = NSRect(x: x, y: y, width: w, height: 22)
@@ -1565,35 +1615,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             f.formatter = fmt
             return f
         }
-        // A clock time is free text, not a bounded count, so it gets no number formatter.
-        func clockField(y: CGFloat, _ value: String) -> NSTextField {
-            let f = NSTextField(frame: NSRect(x: fieldX, y: y - 1, width: fieldW, height: 24))
+        // Half of a clock time: two digits, no number formatter (the delegate does the
+        // filtering, so a half-typed "1" is never rewritten under the caret).
+        func clockBox(x: CGFloat, y: CGFloat, _ value: String, _ placeholder: String) -> NSTextField {
+            let f = NSTextField(frame: NSRect(x: x, y: y - 1, width: boxW, height: 24))
             f.alignment = .center
-            f.placeholderString = "23:30"
+            f.placeholderString = placeholder
             f.stringValue = value
             return f
         }
         let intervalField = field(y: 80, tlInterval, "5")
-        // Only one of the two end-time fields is ever pre-filled: whichever was used last.
+        // Only one of the two end-time inputs is ever pre-filled: whichever was used last.
         let windowField   = field(y: 44, tlUntil.isEmpty ? tlWindowMin : 0, "120")
-        let untilField    = clockField(y: 8, tlUntil)
+        let saved = tlUntil.split(separator: ":").map(String.init)
+        let hourField   = clockBox(x: fieldX,                   y: 8, saved.count == 2 ? saved[0] : "", "23")
+        let minuteField = clockBox(x: fieldX + boxW + colonW,   y: 8, saved.count == 2 ? saved[1] : "", "30")
         // Row 1: lock after [5] min idle
         container.addSubview(text(t("tl.lockAfter"), x: 0, y: 80, w: leadW, .right))
         container.addSubview(intervalField)
-        container.addSubview(text(t("tl.minIdle"), x: tailX, y: 80, w: 330 - tailX, .left))
+        container.addSubview(text(t("tl.minIdle"), x: tailX, y: 80, w: width - tailX, .left))
         // Row 2: run for [120] min, then stop
         container.addSubview(text(t("tl.runFor"), x: 0, y: 44, w: leadW, .right))
         container.addSubview(windowField)
-        container.addSubview(text(t("tl.thenStop"), x: tailX, y: 44, w: 330 - tailX, .left))
-        // Row 3: until [23:30] then stop — mutually exclusive with row 2
+        container.addSubview(text(t("tl.thenStop"), x: tailX, y: 44, w: width - tailX, .left))
+        // Row 3: until [23]:[30] then stop — mutually exclusive with row 2
         container.addSubview(text(t("tl.until"), x: 0, y: 8, w: leadW, .right))
-        container.addSubview(untilField)
-        container.addSubview(text(t("tl.untilStop"), x: tailX, y: 8, w: 330 - tailX, .left))
+        container.addSubview(hourField)
+        container.addSubview(text(":", x: fieldX + boxW, y: 8, w: colonW, .center))
+        container.addSubview(minuteField)
+        container.addSubview(text(t("tl.untilStop"), x: tailX, y: 8, w: width - tailX, .left))
         intervalField.nextKeyView = windowField
-        windowField.nextKeyView = untilField
-        untilField.nextKeyView = intervalField
+        windowField.nextKeyView = hourField
+        hourField.nextKeyView = minuteField
+        minuteField.nextKeyView = intervalField
         // Held for the life of the modal: NSTextField does not retain its delegate.
-        let exclusive = ExclusiveFields(windowField, untilField)
+        let exclusive = TimedLockFields(duration: windowField, hour: hourField, minute: minuteField)
         alert.accessoryView = container
 
         NSApp.activate(ignoringOtherApps: true)
@@ -1603,9 +1659,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard confirmed else { return }
         let iv = Int(intervalField.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0
         guard iv > 0 else { return }
-        let clock = untilField.stringValue.trimmingCharacters(in: .whitespaces)
-        if !clock.isEmpty {
-            guard let until = parseClock(clock) else { badTimeAlert(); return }
+        // Both halves are two digits by construction; a box left empty is a half-finished
+        // entry, which is an error rather than something to guess a default for.
+        let hh = pad2(hourField.stringValue), mm = pad2(minuteField.stringValue)
+        if !hh.isEmpty || !mm.isEmpty {
+            guard hh.count == 2, mm.count == 2, let until = parseClock("\(hh):\(mm)") else {
+                badTimeAlert(); return
+            }
             // window must fit at least one interval, or it would stop before ever locking
             startTimedLock(interval: iv, window: max(until.minutes, iv), until: until.text)
             return
@@ -1639,6 +1699,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Round up, never down: "stop at 23:30" should stop just after 23:30, not at 23:29.
         let minutes = max(1, Int((target.timeIntervalSince(now) / 60).rounded(.up)))
         return (minutes, String(format: "%02d:%02d", h, m))
+    }
+
+    // "9" → "09". The dialog pads on the way out of a box; this covers the case where the
+    // box is still being edited when Start is clicked, so it never got an end-editing pass.
+    private func pad2(_ s: String) -> String {
+        let d = s.filter { $0.isNumber }
+        return d.count == 1 ? "0" + d : String(d)
     }
 
     private func badTimeAlert() {
