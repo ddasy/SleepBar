@@ -89,6 +89,7 @@ private let l10n: [Lang: [String: String]] = [
         "sys.offAfterFmt":     "关屏时间: %@",
         "sys.autoOff":         "提前 1 分钟自动息屏",
         "sys.writeFailed":     "屏幕关闭时间未能修改",
+        "update.availableFmt": "有新版本 %@ · 点击下载",
     ],
     .en: [
         "section.screenOff":   "Screen Off Timer",
@@ -130,6 +131,7 @@ private let l10n: [Lang: [String: String]] = [
         "sys.offAfterFmt":     "Turn Off After: %@",
         "sys.autoOff":         "Auto Screen Off 1 Min Early",
         "sys.writeFailed":     "Couldn't change the display-off time",
+        "update.availableFmt": "Version %@ available · click to download",
     ],
     .es: [
         "section.screenOff":   "Temporizador de pantalla",
@@ -171,6 +173,7 @@ private let l10n: [Lang: [String: String]] = [
         "sys.offAfterFmt":     "Apagar tras: %@",
         "sys.autoOff":         "Apagar pantalla 1 min antes",
         "sys.writeFailed":     "No se pudo cambiar el tiempo de apagado",
+        "update.availableFmt": "Versión %@ disponible · haz clic para descargar",
     ],
     .ar: [
         "section.screenOff":   "مؤقّت إطفاء الشاشة",
@@ -212,6 +215,7 @@ private let l10n: [Lang: [String: String]] = [
         "sys.offAfterFmt":     "الإطفاء بعد: %@",
         "sys.autoOff":         "إطفاء تلقائي قبل دقيقة",
         "sys.writeFailed":     "تعذّر تغيير مدة إطفاء الشاشة",
+        "update.availableFmt": "الإصدار %@ متاح · انقر للتنزيل",
     ],
     .pt: [
         "section.screenOff":   "Temporizador de tela",
@@ -253,6 +257,7 @@ private let l10n: [Lang: [String: String]] = [
         "sys.offAfterFmt":     "Desligar após: %@",
         "sys.autoOff":         "Desligar a tela 1 min antes",
         "sys.writeFailed":     "Não foi possível alterar o tempo de desligamento",
+        "update.availableFmt": "Versão %@ disponível · clique para baixar",
     ],
     .ja: [
         "section.screenOff":   "画面オフタイマー",
@@ -294,6 +299,7 @@ private let l10n: [Lang: [String: String]] = [
         "sys.offAfterFmt":     "オフまでの時間: %@",
         "sys.autoOff":         "1分前に自動で画面オフ",
         "sys.writeFailed":     "画面オフ時間を変更できませんでした",
+        "update.availableFmt": "新しいバージョン %@ · クリックしてダウンロード",
     ],
     .de: [
         "section.screenOff":   "Bildschirm-Timer",
@@ -335,6 +341,7 @@ private let l10n: [Lang: [String: String]] = [
         "sys.offAfterFmt":     "Ausschalten nach: %@",
         "sys.autoOff":         "1 Min. vorher Bildschirm aus",
         "sys.writeFailed":     "Bildschirm-Auszeit konnte nicht geändert werden",
+        "update.availableFmt": "Version %@ verfügbar · zum Herunterladen klicken",
     ],
 ]
 
@@ -377,6 +384,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var keepAwake = false
     private var keepAwakeTask: Process?
     private var keepAwakeItem: NSMenuItem!
+
+    // —— Update check ——
+    // A fortnightly, fire-and-forget GET of the repo's latest release tag. Nothing is
+    // downloaded or installed and no data is sent: when a newer version exists, a single
+    // menu item appears that opens the release page, and the user updates by hand.
+    private let updateFeedURL = URL(string: "https://api.github.com/repos/ddasy/SleepBar/releases/latest")!
+    private let updateReleasesURL = URL(string: "https://github.com/ddasy/SleepBar/releases/latest")!
+    private let updateInterval: TimeInterval = 14 * 24 * 3600
+    private var latestVersion: String?     // set only when the remote tag is newer than ours
+    private var latestURL: URL?            // that release's page
+    private var updateTimer: Timer?
+    private var updateItem: NSMenuItem!
+    private var updateSeparator: NSMenuItem!
 
     // —— System display-off time (pmset displaysleep) ——
     // Reading the current power source's displaysleep needs no privileges; changing it
@@ -488,6 +508,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshUI()
         if keepAwake { startKeepAwake() }   // restore the always-on keep-awake assertion
         readSysOff { [weak self] _ in self?.rearmAutoOff() }   // populate the menu; arm auto screen-off
+        scheduleUpdateCheck()
     }
 
     // MARK: - Localization
@@ -520,6 +541,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
         presetItems = []
+
+        // —— Update notice (stays hidden unless a newer release was found) ——
+        updateItem = NSMenuItem(title: "", action: #selector(openLatestRelease), keyEquivalent: "")
+        updateItem.target = self
+        updateItem.image = icon("arrow.down.circle.fill")
+        menu.addItem(updateItem)
+        updateSeparator = .separator()
+        menu.addItem(updateSeparator)
 
         // —— Screen Off Timer ——
         menu.addItem(.sectionHeader(title: t("section.screenOff")))
@@ -671,6 +700,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             autoOffItem.state = autoOffEnabled ? .on : .off
         }
         updateSysOffUI()
+        if updateItem != nil {
+            let available = latestVersion != nil
+            updateItem.isHidden = !available
+            updateSeparator.isHidden = !available
+            if let v = latestVersion {
+                updateItem.title = String(format: t("update.availableFmt"), v)
+            }
+        }
         if launchItem != nil {
             launchItem.state = launchAtLoginEnabled() ? .on : .off
         }
@@ -1602,7 +1639,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func systemDidWake() {
-        rearmAutoOff()   // the machine just woke: idle is back to zero, recompute the deadline
+        rearmAutoOff()          // the machine just woke: idle is back to zero, recompute the deadline
+        scheduleUpdateCheck()   // a timer that came due mid-sleep never fired
     }
 
     @objc private func screenDidLock() {
@@ -1622,6 +1660,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard tlActive, let end = tlWindowEnd else { return }
         if end.timeIntervalSinceNow <= 0 { stopTimedLock(); return }
         scheduleIdleCheck(after: TimeInterval(tlInterval * 60))   // idle just reset to zero, re-arm
+    }
+
+    // MARK: - Update check (notify only; never downloads or installs anything)
+
+    // Our own version, from the bundle. run.sh's bare binary has no Info.plist, so dev
+    // builds never check — and neither does anything else without a version to compare.
+    private var currentVersion: String? {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
+
+    // Compare dotted versions segment by segment. A string comparison gets this backwards
+    // as soon as a segment reaches two digits ("1.0.9" would sort above "1.0.10").
+    private func isNewer(_ a: String, than b: String) -> Bool {
+        let x = a.split(separator: ".").map { Int($0) ?? 0 }
+        let y = b.split(separator: ".").map { Int($0) ?? 0 }
+        for i in 0..<max(x.count, y.count) {
+            let l = i < x.count ? x[i] : 0
+            let r = i < y.count ? y[i] : 0
+            if l != r { return l > r }
+        }
+        return false
+    }
+
+    // A one-shot timer for exactly when the next check is due, not a poll: a Mac left
+    // running for months wakes the CPU once a fortnight for this. Timers don't fire while
+    // the machine is asleep, so systemDidWake re-arms it.
+    private func scheduleUpdateCheck() {
+        guard isAppBundle, currentVersion != nil else { return }
+        updateTimer?.invalidate()
+        let last = UserDefaults.standard.double(forKey: "lastUpdateCheck")
+        let due = last <= 0 ? 0 : (last + updateInterval) - Date().timeIntervalSince1970
+        guard due > 0 else {
+            // First launch, or overdue — let the launch settle before touching the network.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in self?.checkForUpdate() }
+            return
+        }
+        let tm = Timer(timeInterval: due, repeats: false) { [weak self] _ in self?.checkForUpdate() }
+        tm.tolerance = 3600      // nothing here is time-critical; let the system coalesce it
+        RunLoop.main.add(tm, forMode: .common)
+        updateTimer = tm
+    }
+
+    // One anonymous GET of the public releases endpoint. The timestamp is written before
+    // the request, so an offline machine waits out the interval instead of retrying; any
+    // failure is silent by design — a background check is not worth an error dialog.
+    private func checkForUpdate() {
+        guard let current = currentVersion else { return }
+        // Self-gating, so overlapping arms (a wake right after launch, say) can't stack up
+        // into two requests. The minute of slack absorbs timer drift.
+        let last = UserDefaults.standard.double(forKey: "lastUpdateCheck")
+        guard last <= 0 || Date().timeIntervalSince1970 >= last + updateInterval - 60 else { return }
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastUpdateCheck")
+        var req = URLRequest(url: updateFeedURL, timeoutInterval: 20)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("SleepBar/\(current)", forHTTPHeaderField: "User-Agent")   // GitHub rejects requests without one
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            let tag = data
+                .flatMap { try? JSONSerialization.jsonObject(with: $0) }
+                .flatMap { $0 as? [String: Any] }
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if let name = tag?["tag_name"] as? String {
+                    let version = name.hasPrefix("v") ? String(name.dropFirst()) : name
+                    if self.isNewer(version, than: current) {
+                        self.latestVersion = version
+                        self.latestURL = (tag?["html_url"] as? String).flatMap(URL.init(string:))
+                        self.updateChecks()
+                    }
+                }
+                self.scheduleUpdateCheck()
+            }
+        }.resume()
+    }
+
+    @objc private func openLatestRelease() {
+        NSWorkspace.shared.open(latestURL ?? updateReleasesURL)
     }
 
     // MARK: - Launch at Login (SMAppService; .app bundles only, no permissions needed)

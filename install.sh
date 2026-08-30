@@ -49,7 +49,15 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 swiftc -O "$SRC_DIR/main.swift" -o "$APP_DIR/Contents/MacOS/$APP_NAME" -framework AppKit
 
+# Version for Info.plist. `git describe` only works when a tag is reachable from HEAD —
+# in the `--depth 1` clone above it is not, unless the tip happens to carry the tag, so a
+# remote install done between releases would otherwise be stamped 1.0.0 and then nagged
+# by the update check forever. Fall back to the newest tag the remote knows about.
 VERSION="$(git -C "$SRC_DIR" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
+if [ -z "$VERSION" ]; then
+  VERSION="$(git -C "$SRC_DIR" ls-remote --tags --refs origin 'v*' 2>/dev/null \
+             | sed 's#.*refs/tags/v##' | sort -V | tail -1)"
+fi
 VERSION="${VERSION:-1.0.0}"
 
 # 3b) App icon (the same moon as the menu bar); skip gracefully if rendering fails

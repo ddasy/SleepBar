@@ -31,13 +31,16 @@ Before going to sleep you often want to leave your Mac running for a little long
 - ⚡ **Now** — skip the countdown and run your chosen action (lock / turn off display / sleep) immediately, in one click.
 - 🔒 **Lock screen** — lock to the login window when time's up.
 - 🖥️ **Turn off display** — lock *and* power down the display to save energy.
+- 🌑 **Screen Off (no lock)** — a black screen without locking: built-in brightness → 0, external display → DDC power-off, keyboard backlight → 0, and the audio output **muted** (level dropped to 1%). The system stays awake so the GPU keeps rendering — ideal for leaving a render or an AI task running overnight. Move the mouse *or press a key* and brightness, backlight, volume and mute state all come back.
 - 💤 **Sleep** — put the whole Mac to sleep when the timer ends.
 - ♾️ **Keep awake forever (Never)** — one click to keep the screen on indefinitely; great for long tasks, presentations, or watching videos.
+- ☕ **Keep Awake** — a standalone toggle (below **Language**) that stops the Mac from going to sleep for as long as it's checked; the display can still turn off normally. Independent of the countdown, remembered across restarts, and released automatically when an end action deliberately puts the Mac to sleep.
 - 🔁 **Timed Lock** — *“lock after **5 min** idle, for the next **2 hours**.”* Two numbers, one sentence: how long of no input triggers a lock, and how long the whole thing runs. SleepBar then auto-locks every time you've been idle that long, re-arming after each unlock, until the time's up. The "run for" duration is a fixed countdown — locking or unlocking never resets it. **No permissions required** (reads system idle time only, never intercepts input).
 - 🕹️ **System Display Off control** — see the system's *"Turn display off when inactive"* time (from `pmset`, no permissions needed) right in the menu, and change it to any macOS pillar (1 min – 3 hours, or Never) in two clicks. Writing asks for your admin password once — that's a macOS requirement for power settings.
 - 🌙 **Auto Screen Off 1 min early** — macOS may demand a password after the system turns the display off, even when you told it not to. Turn this on and SleepBar fires its own no-lock **Screen Off** one minute *before* the system deadline (e.g. at 29 min when the system is set to 30), keeping the machine awake behind a black screen — move the mouse and you're back instantly, no password. Adapts automatically if you change the system time or switch between battery and AC.
 - 🧠 **Remembers your custom duration** — your last value is saved and pre-filled, so your favorite time is one click away.
 - 🌐 **7 languages** — English, 中文, Español, العربية, Português (Brasil), 日本語, Deutsch. Switch the entire menu instantly; follows your system language on first launch.
+- 🔔 **Update check** — every 14 days SleepBar quietly asks GitHub whether a newer release exists. If so, one item appears at the top of the menu that opens the download page. It never downloads or installs anything — updating stays your decision, and the check is a single anonymous request that sends nothing about you.
 - 🪶 **Extremely lightweight** — a single Swift file, zero dependencies, no background service. **~0% CPU when idle.**
 
 ## 📸 Screenshots
@@ -94,17 +97,21 @@ Click the 💤 icon in the menu bar:
 
 | Section | Option | What it does |
 |---|---|---|
+| **Update** | Version X available | Appears **only** when a newer release exists; click to open the download page |
 | **Screen Off Timer** | Now | Run the "When Time's Up" action **immediately**, no countdown |
 | | 5 / 10 / 15 / 30 min, 1 hour | Starts a countdown; **click again to cancel** |
 | | Custom… | Enter any number of minutes; **remembered & pre-filled** next time |
 | | Never | Keep the screen on forever (menu bar shows `∞`) |
-| **When Time's Up** | Screen Off | **Built-in** brightness → 0, **external** display → DDC power-off, and **keyboard backlight** → 0 (all true black, **no lock**); keeps things awake so the GPU keeps rendering. On return, auto-restores display + keyboard brightness and re-lights the external via a DisplayPort link retrain |
+| **When Time's Up** | Screen Off | **Built-in** brightness → 0, **external** display → DDC power-off, **keyboard backlight** → 0, and the **audio output muted** (all true black and silent, **no lock**); keeps things awake so the GPU keeps rendering. Mouse *or keyboard* brings it back: display + keyboard brightness, volume and mute state are restored, and the external is re-lit via a DisplayPort link retrain |
 | | Lock Screen | Lock only |
 | | Lock & Turn Off Display | Lock + power down the display |
 | | Lock, Off & Sleep | Lock + put the Mac to sleep |
 | | Lock, Off & Stay Awake | Lock + power down the display, but keep the system awake |
 | **Timed Lock** | Timed Lock… | A two-line dialog: **"Lock after `[N]` min idle"** and **"Run for `[M]` min, then stop."** Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Both values are remembered & pre-filled |
+| **System Display Off** | *(current value)* → 1 min … 3 hours / Never | Shows the system's own "turn display off when inactive" time and changes it in two clicks (one admin-password prompt; writes to the power profile you're actually on) |
+| | Auto Screen Off 1 min early | Runs SleepBar's own no-lock **Screen Off** one minute before that system deadline, so you come back to a black screen with no password prompt |
 | **Language** | English · 中文 · Español · العربية · Português (Brasil) · 日本語 · Deutsch | Switch the whole menu instantly |
+| **Keep Awake** | toggle | Keep the Mac from sleeping until you switch it back off — independent of the countdown, remembered across restarts |
 | **Launch at Login** | toggle | Auto-start when you log in (a standard macOS Login Item). `install.sh` turns it **on** by default — uncheck here to disable |
 | **Quit** | | Quit SleepBar |
 
@@ -119,15 +126,20 @@ SleepBar is a friendly menu-bar wrapper around capabilities already built into m
 | Feature | Under the hood |
 |---|---|
 | Keep awake / countdown | `caffeinate -dis -t <seconds>` (no `sudo`, auto-expires) |
+| Keep Awake (always-on toggle) | `caffeinate -is` with no `-t` — runs until you uncheck it or quit |
 | Turn off display | `pmset displaysleepnow` |
 | Screen Off — built-in | `DisplayServicesSetBrightness` to 0 + `caffeinate -dis`; `IOHIDSystem` `HIDIdleTime` watches for your return and auto-restores brightness |
 | Screen Off — external | `IOAVServiceWriteI2C` sends DDC power-off (VCP `D6=04`) for true black; on return, a momentary refresh-rate switch (same resolution, `CGConfigureDisplayWithDisplayMode`) forces a DisplayPort link retrain to re-light it — fast, no window reshuffle |
 | Screen Off — keyboard backlight | `CoreBrightness` `KeyboardBrightnessClient` saves the level, sets 0, restores on return |
+| Screen Off — audio | AppleScript `volume settings`: the level is saved, dropped to 1% and the output **muted**; both are restored on return. On outputs macOS can't attenuate in software (HDMI, most USB DACs, AirPlay) there is no level to restore and the mute is the whole effect |
+| Screen Off — detecting your return | A global mouse monitor plus a 1 Hz watch on the `IOHIDSystem` idle clock, which keystrokes also reset — so the keyboard wakes it too, with **no Accessibility permission** |
+| System display-off time | reads `pmset -g`; writes `pmset -c\|-b displaysleep <min>` through a single admin-password prompt, to the power profile that is live at that moment |
 | Sleep | `pmset sleepnow` |
 | Lock screen | `SACLockScreenImmediate` from `login.framework` |
 | Timed Lock — idle detection | `CGEventSource.secondsSinceLastEventType` (read-only system idle time; **no Accessibility permission**) |
 | Timed Lock — re-arm after unlock | `com.apple.screenIsUnlocked` distributed notification (event-driven, zero polling while locked) |
-| Remembered preferences | `UserDefaults` (language / end action / custom duration / lock interval / window) |
+| Update check | An anonymous `GET` of `api.github.com/repos/ddasy/SleepBar/releases/latest` at most once per 14 days; a one-shot timer is armed for exactly when the next check is due, so there is no polling in between |
+| Remembered preferences | `UserDefaults` (language / end action / custom duration / lock interval / window / last update check) |
 
 Because it relies on the temporary `caffeinate` mechanism, **it never alters your system energy settings** — the moment the timer ends, your Mac is back to its normal behavior.
 
@@ -153,7 +165,7 @@ swiftc -O main.swift -o SleepBar -framework AppKit
 ./SleepBar
 ```
 
-The whole program is a single `main.swift` (~580 lines of AppKit) with no third-party dependencies.
+The whole program is a single `main.swift` (~1,670 lines of AppKit) with no third-party dependencies.
 
 ## 📋 Requirements
 
@@ -166,10 +178,13 @@ The whole program is a single `main.swift` (~580 lines of AppKit) with no third-
 A: It calls the lock function inside the system's `login.framework` (equivalent to pressing your lock-screen shortcut). It needs no Accessibility permission and sends no data anywhere. If a future major macOS release changes it, open an issue.
 
 **Q: Will it secretly keep my Mac awake?**
-A: No. The screen stays on **only** when you actively pick a duration or "Never." On launch it's idle and fully respects your system settings.
+A: No. The screen stays on **only** when you actively pick a duration or "Never," and the Mac is kept from sleeping only while you have **Keep Awake** checked. On launch it's idle and fully respects your system settings.
 
 **Q: Does it survive a reboot?**
 A: Yes. The installer registers SleepBar as a Login Item, so it reappears in the menu bar after you log in. Don't want that? Uncheck **Launch at Login** in the menu.
+
+**Q: Does it phone home?**
+A: One request, at most once every 14 days: an anonymous `GET` of GitHub's public releases endpoint to compare version numbers. No identifiers, no analytics, and nothing is ever downloaded or installed automatically. Dev builds started by `run.sh` don't check at all.
 
 **Q: I quit it by accident — how do I start it again?**
 A: **Spotlight (⌘Space) → SleepBar**, or type `sleepbar` in Terminal.
