@@ -4,7 +4,9 @@ macOS 菜单栏倒计时睡眠工具（单文件 Swift，AppKit，arm64，macOS 
 
 ## 发布流程（重要）
 
-每次修改代码后，必须打包 DMG 并发布到 GitHub Release，不能让代码领先于已发布的 DMG。
+每次修改代码后，先构建并部署本地测试版，供用户验收。只有用户明确确认可以发布后，才能提交并推送代码、打 tag 和创建 GitHub Release；不得把实现请求或本地测试请求视为发布授权。
+
+用户确认发布后，必须打包 DMG 并发布到 GitHub Release，确保已发布版本的代码与 DMG 一致。
 （`*.dmg` 和 `build/` 在 .gitignore 中，不进仓库；用户通过 GitHub Releases 下载 DMG。）
 
 1. 提交并推送代码到 `origin/main`

@@ -50,15 +50,15 @@ enum Lang: String, CaseIterable {
 // %d / %@ placeholders are filled via String(format:).
 private let l10n: [Lang: [String: String]] = [
     .zh: [
-        "menu.feedback": "反馈问题 / 功能建议…",
+        "menu.feedback": "反馈与建议",
         "feedback.type": "类型",
-        "feedback.bug": "报告问题",
+        "feedback.bug": "Bug",
         "feedback.feature": "功能建议",
-        "feedback.title": "标题",
-        "feedback.description": "描述",
+        "feedback.title": "反馈与建议",
+        "feedback.description": "问题：",
         "feedback.notice": "将在浏览器中打开 GitHub，需登录并确认提交。反馈将公开，请勿填写隐私信息。",
-        "feedback.open": "前往 GitHub 提交",
-        "feedback.required": "请填写标题和描述。",
+        "feedback.open": "提交到 GitHub",
+        "feedback.required": "请填写问题或功能建议。",
         "feedback.tooLong": "内容过长，无法放入链接。请缩短后重试，详细内容可在 GitHub 页面补充。",
         "feedback.failed": "无法打开浏览器，请检查默认浏览器设置后重试。",
         "section.screenOff":   "屏幕关闭时间",
@@ -110,17 +110,20 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.msg":            "另一份装在:\n%@\n\n两份会各自开机自启,菜单栏会出现两个月亮。要把那一份移到废纸篓吗?可以随时从废纸篓恢复。",
         "dupe.trash":          "移到废纸篓",
         "dupe.keep":           "都保留",
+
+        "feedback.system": "附带系统版本",
+        "feedback.app": "附带 App 版本",
     ],
     .en: [
         "menu.feedback": "Report a Problem / Suggest a Feature…",
         "feedback.type": "Type",
-        "feedback.bug": "Bug report",
+        "feedback.bug": "Bug",
         "feedback.feature": "Feature request",
-        "feedback.title": "Title",
-        "feedback.description": "Description",
+        "feedback.title": "Feedback & Suggestions",
+        "feedback.description": "Problem:",
         "feedback.notice": "Opens GitHub in your browser. Sign in and confirm submission there. Feedback will be public; do not include private information.",
-        "feedback.open": "Continue on GitHub",
-        "feedback.required": "Please enter a title and description.",
+        "feedback.open": "Submit to GitHub",
+        "feedback.required": "Please describe the problem or feature request.",
         "feedback.tooLong": "The content is too long for a link. Shorten it and add further details on GitHub.",
         "feedback.failed": "Could not open your browser. Check your default browser settings and try again.",
         "section.screenOff":   "Screen Off Timer",
@@ -172,17 +175,20 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.msg":            "Another copy is installed at:\n%@\n\nBoth will start at login, and you\u{2019}ll get two moons in the menu bar. Move that one to the Trash? You can put it back from there at any time.",
         "dupe.trash":          "Move to Trash",
         "dupe.keep":           "Keep Both",
+
+        "feedback.system": "Include system version",
+        "feedback.app": "Include app version",
     ],
     .es: [
         "menu.feedback": "Informar de un problema / Sugerir una función…",
         "feedback.type": "Tipo",
-        "feedback.bug": "Informar de un problema",
+        "feedback.bug": "Bug",
         "feedback.feature": "Sugerir una función",
-        "feedback.title": "Título",
-        "feedback.description": "Descripción",
+        "feedback.title": "Comentarios y sugerencias",
+        "feedback.description": "Problema:",
         "feedback.notice": "Se abrirá GitHub en el navegador. Inicia sesión y confirma el envío allí. El contenido será público; no incluyas información privada.",
-        "feedback.open": "Continuar en GitHub",
-        "feedback.required": "Introduce un título y una descripción.",
+        "feedback.open": "Enviar a GitHub",
+        "feedback.required": "Describe el problema o la función que sugieres.",
         "feedback.tooLong": "El contenido es demasiado largo para un enlace. Acórtalo y añade más detalles en GitHub.",
         "feedback.failed": "No se pudo abrir el navegador. Revisa el navegador predeterminado e inténtalo de nuevo.",
         "section.screenOff":   "Temporizador de pantalla",
@@ -234,17 +240,20 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.msg":            "Hay otra copia instalada en:\n%@\n\nLas dos se abrirán al iniciar sesión y verás dos lunas en la barra de menús. ¿Mover esa a la Papelera? Puedes recuperarla cuando quieras.",
         "dupe.trash":          "Mover a la Papelera",
         "dupe.keep":           "Conservar ambas",
+
+        "feedback.system": "Incluir versión del sistema",
+        "feedback.app": "Incluir versión de la app",
     ],
     .ar: [
         "menu.feedback": "الإبلاغ عن مشكلة / اقتراح ميزة…",
         "feedback.type": "النوع",
-        "feedback.bug": "الإبلاغ عن مشكلة",
+        "feedback.bug": "Bug",
         "feedback.feature": "اقتراح ميزة",
-        "feedback.title": "العنوان",
-        "feedback.description": "الوصف",
+        "feedback.title": "الملاحظات والاقتراحات",
+        "feedback.description": "المشكلة:",
         "feedback.notice": "سيُفتح GitHub في المتصفح. سجّل الدخول وأكّد الإرسال هناك. ستكون الملاحظات علنية؛ لا تُدرج معلومات خاصة.",
-        "feedback.open": "المتابعة على GitHub",
-        "feedback.required": "أدخل عنوانًا ووصفًا.",
+        "feedback.open": "إرسال إلى GitHub",
+        "feedback.required": "صِف المشكلة أو الميزة المقترحة.",
         "feedback.tooLong": "المحتوى أطول من أن يتسع له الرابط. اختصره وأضف التفاصيل على GitHub.",
         "feedback.failed": "تعذّر فتح المتصفح. تحقّق من إعدادات المتصفح الافتراضي وحاول مجددًا.",
         "section.screenOff":   "مؤقّت إطفاء الشاشة",
@@ -296,17 +305,20 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.msg":            "توجد نسخة أخرى في:\n%@\n\nكلتاهما ستبدأ عند تسجيل الدخول وسيظهر قمران في شريط القوائم. هل تنقل تلك النسخة إلى المهملات؟ يمكنك استرجاعها في أي وقت.",
         "dupe.trash":          "النقل إلى المهملات",
         "dupe.keep":           "الإبقاء على الاثنتين",
+
+        "feedback.system": "إرفاق إصدار النظام",
+        "feedback.app": "إرفاق إصدار التطبيق",
     ],
     .pt: [
         "menu.feedback": "Relatar problema / Sugerir recurso…",
         "feedback.type": "Tipo",
-        "feedback.bug": "Relatar problema",
+        "feedback.bug": "Bug",
         "feedback.feature": "Sugerir recurso",
-        "feedback.title": "Título",
-        "feedback.description": "Descrição",
+        "feedback.title": "Feedback e sugestões",
+        "feedback.description": "Problema:",
         "feedback.notice": "Abre o GitHub no navegador. Entre na sua conta e confirme o envio lá. O conteúdo será público; não inclua informações privadas.",
-        "feedback.open": "Continuar no GitHub",
-        "feedback.required": "Preencha o título e a descrição.",
+        "feedback.open": "Enviar ao GitHub",
+        "feedback.required": "Descreva o problema ou o recurso sugerido.",
         "feedback.tooLong": "O conteúdo é longo demais para um link. Encurte-o e adicione mais detalhes no GitHub.",
         "feedback.failed": "Não foi possível abrir o navegador. Verifique o navegador padrão e tente novamente.",
         "section.screenOff":   "Temporizador de tela",
@@ -358,17 +370,20 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.msg":            "Há outra cópia instalada em:\n%@\n\nAs duas vão iniciar no login e você verá duas luas na barra de menus. Mover essa para o Lixo? Dá para restaurar quando quiser.",
         "dupe.trash":          "Mover para o Lixo",
         "dupe.keep":           "Manter as duas",
+
+        "feedback.system": "Incluir versão do sistema",
+        "feedback.app": "Incluir versão do app",
     ],
     .ja: [
         "menu.feedback": "問題を報告 / 機能を提案…",
         "feedback.type": "種類",
-        "feedback.bug": "問題を報告",
+        "feedback.bug": "Bug",
         "feedback.feature": "機能を提案",
-        "feedback.title": "タイトル",
-        "feedback.description": "説明",
+        "feedback.title": "フィードバックと提案",
+        "feedback.description": "問題：",
         "feedback.notice": "ブラウザで GitHub を開きます。ログインして送信を確定してください。内容は公開されるため、個人情報は入力しないでください。",
-        "feedback.open": "GitHub で送信へ進む",
-        "feedback.required": "タイトルと説明を入力してください。",
+        "feedback.open": "GitHub に送信",
+        "feedback.required": "問題や機能の提案を入力してください。",
         "feedback.tooLong": "リンクに含めるには内容が長すぎます。短くして、詳細は GitHub で追記してください。",
         "feedback.failed": "ブラウザを開けませんでした。既定のブラウザ設定を確認して再試行してください。",
         "section.screenOff":   "画面オフタイマー",
@@ -420,17 +435,20 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.msg":            "もう 1 つはここにあります:\n%@\n\n両方がログイン時に起動し、メニューバーに月が 2 つ出ます。そちらをゴミ箱に入れますか?いつでも元に戻せます。",
         "dupe.trash":          "ゴミ箱に入れる",
         "dupe.keep":           "両方残す",
+
+        "feedback.system": "システムのバージョンを添付",
+        "feedback.app": "アプリのバージョンを添付",
     ],
     .de: [
         "menu.feedback": "Problem melden / Funktion vorschlagen…",
         "feedback.type": "Typ",
-        "feedback.bug": "Problem melden",
+        "feedback.bug": "Bug",
         "feedback.feature": "Funktion vorschlagen",
-        "feedback.title": "Titel",
-        "feedback.description": "Beschreibung",
+        "feedback.title": "Feedback und Vorschläge",
+        "feedback.description": "Problem:",
         "feedback.notice": "Öffnet GitHub im Browser. Dort anmelden und das Senden bestätigen. Der Inhalt wird öffentlich; keine privaten Informationen eingeben.",
-        "feedback.open": "Weiter zu GitHub",
-        "feedback.required": "Bitte Titel und Beschreibung eingeben.",
+        "feedback.open": "An GitHub senden",
+        "feedback.required": "Bitte das Problem oder den Funktionswunsch beschreiben.",
         "feedback.tooLong": "Der Inhalt ist zu lang für einen Link. Bitte kürzen und weitere Details auf GitHub ergänzen.",
         "feedback.failed": "Der Browser konnte nicht geöffnet werden. Bitte den Standardbrowser prüfen und erneut versuchen.",
         "section.screenOff":   "Bildschirm-Timer",
@@ -482,6 +500,9 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.msg":            "Eine weitere Kopie liegt unter:\n%@\n\nBeide starten bei der Anmeldung, und in der Menüleiste erscheinen zwei Monde. Diese Kopie in den Papierkorb legen? Du kannst sie jederzeit zurückholen.",
         "dupe.trash":          "In den Papierkorb",
         "dupe.keep":           "Beide behalten",
+
+        "feedback.system": "Systemversion anhängen",
+        "feedback.app": "App-Version anhängen",
     ],
 ]
 
@@ -497,6 +518,128 @@ private func feedbackURL(title: String, description: String, isFeature: Bool) ->
     components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
     guard let url = components.url, url.absoluteString.utf8.count <= 7500 else { return nil }
     return url
+}
+
+// A compact, modeless form keeps the menu and countdown responsive while writing.
+private final class FeedbackWindowController: NSWindowController {
+    private let t: (String) -> String
+    private let details = NSTextView()
+    private let bug = NSButton()
+    private let feature = NSButton()
+    private let systemVersion = NSButton()
+    private let appVersion = NSButton()
+
+    init(localize: @escaping (String) -> String) {
+        t = localize
+        let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 540),
+                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        super.init(window: panel)
+        panel.title = t("feedback.title")
+        panel.isReleasedWhenClosed = false
+        panel.center()
+        guard let content = panel.contentView else { return }
+        let width: CGFloat = 396
+        func label(_ text: String, y: CGFloat, size: CGFloat = 14, bold: Bool = false) {
+            let field = NSTextField(labelWithString: text)
+            field.font = bold ? .boldSystemFont(ofSize: size) : .systemFont(ofSize: size)
+            field.frame = NSRect(x: 32, y: y, width: width, height: 28)
+            content.addSubview(field)
+        }
+        label(t("feedback.title"), y: 482, size: 22, bold: true)
+        label(t("feedback.type"), y: 427, bold: true)
+        for (button, text, x, w) in [(bug, t("feedback.bug"), CGFloat(32), CGFloat(86)),
+                                      (feature, t("feedback.feature"), CGFloat(132), CGFloat(296))] {
+            button.setButtonType(.radio)
+            button.title = text
+            button.font = .systemFont(ofSize: 14)
+            button.frame = NSRect(x: x, y: 394, width: w, height: 28)
+            button.target = self
+            button.action = #selector(selectType(_:))
+            content.addSubview(button)
+        }
+        bug.state = .on
+        label(t("feedback.description"), y: 348, bold: true)
+        let scroll = NSScrollView(frame: NSRect(x: 32, y: 190, width: width, height: 152))
+        scroll.borderType = .bezelBorder
+        scroll.hasVerticalScroller = true
+        details.frame = scroll.contentView.bounds
+        details.isRichText = false
+        details.isAutomaticQuoteSubstitutionEnabled = false
+        details.isAutomaticDashSubstitutionEnabled = false
+        details.font = .systemFont(ofSize: 14)
+        details.textContainerInset = NSSize(width: 8, height: 8)
+        details.isVerticallyResizable = true
+        details.isHorizontallyResizable = false
+        details.autoresizingMask = [.width]
+        details.textContainer?.widthTracksTextView = true
+        details.setAccessibilityLabel(t("feedback.description"))
+        scroll.documentView = details
+        content.addSubview(scroll)
+        for (button, key, y) in [(systemVersion, "feedback.system", CGFloat(146)),
+                                  (appVersion, "feedback.app", CGFloat(116))] {
+            button.setButtonType(.switch)
+            button.title = t(key)
+            button.font = .systemFont(ofSize: 14)
+            button.state = .on
+            button.frame = NSRect(x: 32, y: y, width: width, height: 26)
+            content.addSubview(button)
+        }
+        let notice = NSTextField(wrappingLabelWithString: t("feedback.notice"))
+        notice.font = .systemFont(ofSize: 11)
+        notice.textColor = .secondaryLabelColor
+        notice.frame = NSRect(x: 32, y: 65, width: width, height: 44)
+        content.addSubview(notice)
+        let submit = NSButton(title: t("feedback.open"), target: self, action: #selector(submit))
+        submit.bezelStyle = .rounded
+        submit.frame = NSRect(x: 100, y: 18, width: 260, height: 32)
+        submit.keyEquivalent = "\r"
+        submit.keyEquivalentModifierMask = [.command]
+        content.addSubview(submit)
+        bug.nextKeyView = feature
+        feature.nextKeyView = details
+        details.nextKeyView = systemVersion
+        systemVersion.nextKeyView = appVersion
+        appVersion.nextKeyView = submit
+        panel.initialFirstResponder = details
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    @objc private func selectType(_ sender: NSButton) {
+        bug.state = sender === bug ? .on : .off
+        feature.state = sender === feature ? .on : .off
+    }
+
+    @objc private func submit() {
+        let text = details.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { showError(t("feedback.required")); return }
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Development"
+        let body = feedbackBody(text: text,
+                                systemVersion: systemVersion.state == .on ? "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)" : nil,
+                                appVersion: appVersion.state == .on ? version : nil)
+        let title = String((text.split(whereSeparator: { $0.isNewline }).first.map(String.init) ?? text).prefix(80))
+        guard let url = feedbackURL(title: title, description: body, isFeature: feature.state == .on) else {
+            showError(t("feedback.tooLong")); return
+        }
+        guard NSWorkspace.shared.open(url) else { showError(t("feedback.failed")); return }
+        close()
+    }
+
+    private func showError(_ message: String) {
+        guard let window = window else { return }
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.addButton(withTitle: t("btn.ok"))
+        alert.beginSheetModal(for: window)
+    }
+}
+
+private func feedbackBody(text: String, systemVersion: String?, appVersion: String?) -> String {
+    var metadata: [String] = []
+    if let systemVersion = systemVersion { metadata.append("System: \(systemVersion)") }
+    if let appVersion = appVersion { metadata.append("SleepBar: \(appVersion)") }
+    return text + (metadata.isEmpty ? "" : "\n\n---\n" + metadata.joined(separator: "\n"))
 }
 
 // Built-in keyboard backlight control via CoreBrightness's private KeyboardBrightnessClient.
@@ -2058,70 +2201,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - Feedback (browser handoff; no credentials or automatic submission)
 
+    private var feedbackController: FeedbackWindowController?
+
     @objc private func showFeedback() {
-        let alert = NSAlert()
-        alert.messageText = t("menu.feedback")
-        alert.informativeText = t("feedback.notice")
-        alert.icon = icon("bubble.left.and.bubble.right")
-        alert.addButton(withTitle: t("feedback.open"))
-        alert.addButton(withTitle: t("btn.cancel"))
-
-        let width: CGFloat = 480
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 330))
-        func label(_ key: String, y: CGFloat) {
-            let field = NSTextField(labelWithString: t(key))
-            field.frame = NSRect(x: 0, y: y, width: width, height: 20)
-            container.addSubview(field)
+        if feedbackController?.window?.isVisible != true {
+            feedbackController = FeedbackWindowController(localize: { [unowned self] in self.t($0) })
         }
-        label("feedback.type", y: 310)
-        let type = NSPopUpButton(frame: NSRect(x: 0, y: 274, width: width, height: 30))
-        type.addItems(withTitles: [t("feedback.bug"), t("feedback.feature")])
-        type.setAccessibilityLabel(t("feedback.type"))
-        container.addSubview(type)
-        label("feedback.title", y: 246)
-        let title = NSTextField(frame: NSRect(x: 0, y: 214, width: width, height: 26))
-        title.setAccessibilityLabel(t("feedback.title"))
-        container.addSubview(title)
-        label("feedback.description", y: 186)
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: 180))
-        scroll.borderType = .bezelBorder
-        scroll.hasVerticalScroller = true
-        let description = NSTextView(frame: scroll.contentView.bounds)
-        description.isRichText = false
-        description.isAutomaticQuoteSubstitutionEnabled = false
-        description.isAutomaticDashSubstitutionEnabled = false
-        description.font = .systemFont(ofSize: NSFont.systemFontSize)
-        description.textContainerInset = NSSize(width: 6, height: 6)
-        description.isVerticallyResizable = true
-        description.isHorizontallyResizable = false
-        description.autoresizingMask = [.width]
-        description.textContainer?.widthTracksTextView = true
-        description.setAccessibilityLabel(t("feedback.description"))
-        scroll.documentView = description
-        container.addSubview(scroll)
-        type.nextKeyView = title
-        title.nextKeyView = description
-        description.nextKeyView = alert.buttons[0]
-        alert.accessoryView = container
-        alert.window.initialFirstResponder = title
+        feedbackController?.showWindow(nil)
+        feedbackController?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-
-        // Reuse the same controls on validation/open failures, preserving the user's text.
-        while alert.runModal() == .alertFirstButtonReturn {
-            let heading = title.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            let details = description.string.trimmingCharacters(in: .whitespacesAndNewlines)
-            let error: String
-            if heading.isEmpty || details.isEmpty {
-                error = t("feedback.required")
-            } else if let url = feedbackURL(title: heading, description: details,
-                                           isFeature: type.indexOfSelectedItem == 1) {
-                if NSWorkspace.shared.open(url) { return }
-                error = t("feedback.failed")
-            } else {
-                error = t("feedback.tooLong")
-            }
-            alert.informativeText = error + "\n\n" + t("feedback.notice")
-        }
     }
 
     // MARK: - Update check (notify only; never downloads or installs anything)
