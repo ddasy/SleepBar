@@ -50,6 +50,17 @@ enum Lang: String, CaseIterable {
 // %d / %@ placeholders are filled via String(format:).
 private let l10n: [Lang: [String: String]] = [
     .zh: [
+        "menu.feedback": "反馈问题 / 功能建议…",
+        "feedback.type": "类型",
+        "feedback.bug": "报告问题",
+        "feedback.feature": "功能建议",
+        "feedback.title": "标题",
+        "feedback.description": "描述",
+        "feedback.notice": "将在浏览器中打开 GitHub，需登录并确认提交。反馈将公开，请勿填写隐私信息。",
+        "feedback.open": "前往 GitHub 提交",
+        "feedback.required": "请填写标题和描述。",
+        "feedback.tooLong": "内容过长，无法放入链接。请缩短后重试，详细内容可在 GitHub 页面补充。",
+        "feedback.failed": "无法打开浏览器，请检查默认浏览器设置后重试。",
         "section.screenOff":   "屏幕关闭时间",
         "menu.now":            "立即",
         "menu.custom":         "自定义时长…",
@@ -101,6 +112,17 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.keep":           "都保留",
     ],
     .en: [
+        "menu.feedback": "Report a Problem / Suggest a Feature…",
+        "feedback.type": "Type",
+        "feedback.bug": "Bug report",
+        "feedback.feature": "Feature request",
+        "feedback.title": "Title",
+        "feedback.description": "Description",
+        "feedback.notice": "Opens GitHub in your browser. Sign in and confirm submission there. Feedback will be public; do not include private information.",
+        "feedback.open": "Continue on GitHub",
+        "feedback.required": "Please enter a title and description.",
+        "feedback.tooLong": "The content is too long for a link. Shorten it and add further details on GitHub.",
+        "feedback.failed": "Could not open your browser. Check your default browser settings and try again.",
         "section.screenOff":   "Screen Off Timer",
         "menu.now":            "Now",
         "menu.custom":         "Custom…",
@@ -152,6 +174,17 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.keep":           "Keep Both",
     ],
     .es: [
+        "menu.feedback": "Informar de un problema / Sugerir una función…",
+        "feedback.type": "Tipo",
+        "feedback.bug": "Informar de un problema",
+        "feedback.feature": "Sugerir una función",
+        "feedback.title": "Título",
+        "feedback.description": "Descripción",
+        "feedback.notice": "Se abrirá GitHub en el navegador. Inicia sesión y confirma el envío allí. El contenido será público; no incluyas información privada.",
+        "feedback.open": "Continuar en GitHub",
+        "feedback.required": "Introduce un título y una descripción.",
+        "feedback.tooLong": "El contenido es demasiado largo para un enlace. Acórtalo y añade más detalles en GitHub.",
+        "feedback.failed": "No se pudo abrir el navegador. Revisa el navegador predeterminado e inténtalo de nuevo.",
         "section.screenOff":   "Temporizador de pantalla",
         "menu.now":            "Ahora",
         "menu.custom":         "Personalizado…",
@@ -203,6 +236,17 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.keep":           "Conservar ambas",
     ],
     .ar: [
+        "menu.feedback": "الإبلاغ عن مشكلة / اقتراح ميزة…",
+        "feedback.type": "النوع",
+        "feedback.bug": "الإبلاغ عن مشكلة",
+        "feedback.feature": "اقتراح ميزة",
+        "feedback.title": "العنوان",
+        "feedback.description": "الوصف",
+        "feedback.notice": "سيُفتح GitHub في المتصفح. سجّل الدخول وأكّد الإرسال هناك. ستكون الملاحظات علنية؛ لا تُدرج معلومات خاصة.",
+        "feedback.open": "المتابعة على GitHub",
+        "feedback.required": "أدخل عنوانًا ووصفًا.",
+        "feedback.tooLong": "المحتوى أطول من أن يتسع له الرابط. اختصره وأضف التفاصيل على GitHub.",
+        "feedback.failed": "تعذّر فتح المتصفح. تحقّق من إعدادات المتصفح الافتراضي وحاول مجددًا.",
         "section.screenOff":   "مؤقّت إطفاء الشاشة",
         "menu.now":            "الآن",
         "menu.custom":         "مخصّص…",
@@ -254,6 +298,17 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.keep":           "الإبقاء على الاثنتين",
     ],
     .pt: [
+        "menu.feedback": "Relatar problema / Sugerir recurso…",
+        "feedback.type": "Tipo",
+        "feedback.bug": "Relatar problema",
+        "feedback.feature": "Sugerir recurso",
+        "feedback.title": "Título",
+        "feedback.description": "Descrição",
+        "feedback.notice": "Abre o GitHub no navegador. Entre na sua conta e confirme o envio lá. O conteúdo será público; não inclua informações privadas.",
+        "feedback.open": "Continuar no GitHub",
+        "feedback.required": "Preencha o título e a descrição.",
+        "feedback.tooLong": "O conteúdo é longo demais para um link. Encurte-o e adicione mais detalhes no GitHub.",
+        "feedback.failed": "Não foi possível abrir o navegador. Verifique o navegador padrão e tente novamente.",
         "section.screenOff":   "Temporizador de tela",
         "menu.now":            "Agora",
         "menu.custom":         "Personalizado…",
@@ -305,6 +360,17 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.keep":           "Manter as duas",
     ],
     .ja: [
+        "menu.feedback": "問題を報告 / 機能を提案…",
+        "feedback.type": "種類",
+        "feedback.bug": "問題を報告",
+        "feedback.feature": "機能を提案",
+        "feedback.title": "タイトル",
+        "feedback.description": "説明",
+        "feedback.notice": "ブラウザで GitHub を開きます。ログインして送信を確定してください。内容は公開されるため、個人情報は入力しないでください。",
+        "feedback.open": "GitHub で送信へ進む",
+        "feedback.required": "タイトルと説明を入力してください。",
+        "feedback.tooLong": "リンクに含めるには内容が長すぎます。短くして、詳細は GitHub で追記してください。",
+        "feedback.failed": "ブラウザを開けませんでした。既定のブラウザ設定を確認して再試行してください。",
         "section.screenOff":   "画面オフタイマー",
         "menu.now":            "今すぐ",
         "menu.custom":         "カスタム…",
@@ -356,6 +422,17 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.keep":           "両方残す",
     ],
     .de: [
+        "menu.feedback": "Problem melden / Funktion vorschlagen…",
+        "feedback.type": "Typ",
+        "feedback.bug": "Problem melden",
+        "feedback.feature": "Funktion vorschlagen",
+        "feedback.title": "Titel",
+        "feedback.description": "Beschreibung",
+        "feedback.notice": "Öffnet GitHub im Browser. Dort anmelden und das Senden bestätigen. Der Inhalt wird öffentlich; keine privaten Informationen eingeben.",
+        "feedback.open": "Weiter zu GitHub",
+        "feedback.required": "Bitte Titel und Beschreibung eingeben.",
+        "feedback.tooLong": "Der Inhalt ist zu lang für einen Link. Bitte kürzen und weitere Details auf GitHub ergänzen.",
+        "feedback.failed": "Der Browser konnte nicht geöffnet werden. Bitte den Standardbrowser prüfen und erneut versuchen.",
         "section.screenOff":   "Bildschirm-Timer",
         "menu.now":            "Jetzt",
         "menu.custom":         "Eigene Dauer…",
@@ -407,6 +484,20 @@ private let l10n: [Lang: [String: String]] = [
         "dupe.keep":           "Beide behalten",
     ],
 ]
+
+// Keep the entire encoded URL within a conservative browser/request size budget.
+// Never truncate a report silently; the dialog asks the user to shorten it instead.
+private func feedbackURL(title: String, description: String, isFeature: Bool) -> URL? {
+    var components = URLComponents(string: "https://github.com/ddasy/SleepBar/issues/new")!
+    components.queryItems = [
+        URLQueryItem(name: "title", value: "[\(isFeature ? "Feature" : "Bug")] \(title)"),
+        URLQueryItem(name: "body", value: description),
+    ]
+    // GitHub decodes query strings as form data, where a literal + means a space.
+    components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+    guard let url = components.url, url.absoluteString.utf8.count <= 7500 else { return nil }
+    return url
+}
 
 // Built-in keyboard backlight control via CoreBrightness's private KeyboardBrightnessClient.
 @objc private protocol KeyboardBacklight {
@@ -806,6 +897,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             launchItem.image = icon("power.circle")
             menu.addItem(launchItem)
         }
+
+        let feedback = NSMenuItem(title: t("menu.feedback"),
+                                  action: #selector(showFeedback), keyEquivalent: "")
+        feedback.target = self
+        feedback.image = icon("bubble.left.and.bubble.right")
+        menu.addItem(feedback)
 
         // —— Quit ——
         let quit = NSMenuItem(title: t("menu.quit"), action: #selector(quit), keyEquivalent: "q")
@@ -1956,6 +2053,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 f.addButton(withTitle: self.t("btn.ok"))
                 f.runModal()
             }
+        }
+    }
+
+    // MARK: - Feedback (browser handoff; no credentials or automatic submission)
+
+    @objc private func showFeedback() {
+        let alert = NSAlert()
+        alert.messageText = t("menu.feedback")
+        alert.informativeText = t("feedback.notice")
+        alert.icon = icon("bubble.left.and.bubble.right")
+        alert.addButton(withTitle: t("feedback.open"))
+        alert.addButton(withTitle: t("btn.cancel"))
+
+        let width: CGFloat = 480
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 330))
+        func label(_ key: String, y: CGFloat) {
+            let field = NSTextField(labelWithString: t(key))
+            field.frame = NSRect(x: 0, y: y, width: width, height: 20)
+            container.addSubview(field)
+        }
+        label("feedback.type", y: 310)
+        let type = NSPopUpButton(frame: NSRect(x: 0, y: 274, width: width, height: 30))
+        type.addItems(withTitles: [t("feedback.bug"), t("feedback.feature")])
+        type.setAccessibilityLabel(t("feedback.type"))
+        container.addSubview(type)
+        label("feedback.title", y: 246)
+        let title = NSTextField(frame: NSRect(x: 0, y: 214, width: width, height: 26))
+        title.setAccessibilityLabel(t("feedback.title"))
+        container.addSubview(title)
+        label("feedback.description", y: 186)
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: width, height: 180))
+        scroll.borderType = .bezelBorder
+        scroll.hasVerticalScroller = true
+        let description = NSTextView(frame: scroll.contentView.bounds)
+        description.isRichText = false
+        description.isAutomaticQuoteSubstitutionEnabled = false
+        description.isAutomaticDashSubstitutionEnabled = false
+        description.font = .systemFont(ofSize: NSFont.systemFontSize)
+        description.textContainerInset = NSSize(width: 6, height: 6)
+        description.isVerticallyResizable = true
+        description.isHorizontallyResizable = false
+        description.autoresizingMask = [.width]
+        description.textContainer?.widthTracksTextView = true
+        description.setAccessibilityLabel(t("feedback.description"))
+        scroll.documentView = description
+        container.addSubview(scroll)
+        type.nextKeyView = title
+        title.nextKeyView = description
+        description.nextKeyView = alert.buttons[0]
+        alert.accessoryView = container
+        alert.window.initialFirstResponder = title
+        NSApp.activate(ignoringOtherApps: true)
+
+        // Reuse the same controls on validation/open failures, preserving the user's text.
+        while alert.runModal() == .alertFirstButtonReturn {
+            let heading = title.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            let details = description.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let error: String
+            if heading.isEmpty || details.isEmpty {
+                error = t("feedback.required")
+            } else if let url = feedbackURL(title: heading, description: details,
+                                           isFeature: type.indexOfSelectedItem == 1) {
+                if NSWorkspace.shared.open(url) { return }
+                error = t("feedback.failed")
+            } else {
+                error = t("feedback.tooLong")
+            }
+            alert.informativeText = error + "\n\n" + t("feedback.notice")
         }
     }
 

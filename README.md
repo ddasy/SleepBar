@@ -41,6 +41,7 @@ Before going to sleep you often want to leave your Mac running for a little long
 - 🧠 **Remembers your custom duration** — your last value is saved and pre-filled, so your favorite time is one click away.
 - 🌐 **7 languages** — English, 中文, Español, العربية, Português (Brasil), 日本語, Deutsch. Switch the entire menu instantly; follows your system language on first launch.
 - 🔔 **Update check** — every 14 days SleepBar quietly asks GitHub whether a newer release exists. If so, one item appears at the top of the menu that opens the download page. It never downloads or installs anything — updating stays your decision, and the check is a single anonymous request that sends nothing about you.
+- 💬 **Report a problem / suggest a feature** — choose a type and write a title and description in the app, then continue to a prefilled GitHub Issue in your browser. GitHub sign-in and confirmation are required; feedback is public, so leave out private information.
 - 🪶 **Extremely lightweight** — a single Swift file, zero dependencies, no background service. **~0% CPU when idle.**
 
 ## 📸 Screenshots
@@ -187,7 +188,7 @@ A: Yes. The installer registers SleepBar as a Login Item, so it reappears in the
 A: Two copies means two Login Items, two icons in Spotlight, and two moons in the menu bar, with an update landing on only one of them. Both routes clean this up: `install.sh` moves a `/Applications` copy to the Trash before installing, and the running app offers to do the same if it spots the other one (it asks first, moves rather than deletes, and remembers a "keep both"). Only an installed copy ever offers — a build run from a folder, or the app inside a mounted DMG, never touches your real install.
 
 **Q: Does it phone home?**
-A: One request, at most once every 14 days: an anonymous `GET` of GitHub's public releases endpoint to compare version numbers. No identifiers, no analytics, and nothing is ever downloaded or installed automatically. Dev builds started by `run.sh` don't check at all.
+A: One automatic request, at most once every 14 days: an anonymous `GET` of GitHub's public releases endpoint to compare version numbers. No identifiers, no analytics, and nothing is ever downloaded or installed automatically. Dev builds started by `run.sh` don't check at all. Choosing Continue on GitHub opens your browser with the title and description you entered; publishing requires confirmation on GitHub.
 
 **Q: I quit it by accident — how do I start it again?**
 A: **Spotlight (⌘Space) → SleepBar**, or type `sleepbar` in Terminal.
