@@ -1324,12 +1324,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    // "Screen off" (no lock): built-in brightness → 0, external display → DDC
+    // "Screen off" (no lock): built-in brightness → 0, every external display → DDC
     // power-off, and keyboard backlight → 0 — all a true black that, unlike display
     // sleep, keeps the GPU rendering (the built-in stays on at brightness 0 as the
     // GPU's wake anchor). Output volume also drops to 1%. Keep the system awake
     // (caffeinate -dis). The watcher restores brightness + keyboard + volume and
-    // re-lights the external when the user returns.
+    // re-lights the externals when the user returns.
     // Called by the .screenOff end action and by the auto-early-screen-off trigger.
     private func activateScreenOff() {
         killTask()
@@ -1510,7 +1510,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     // User returned: restore built-in brightness + keyboard backlight, re-light the external
-    // display, and drop the keep-awake caffeinate we started.
+    // displays, and drop the keep-awake caffeinate we started.
     private func wakeFromScreenOff() {
         stopScreenOffWatch()
         restoreBrightness()
@@ -1724,12 +1724,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // leaves them dimly lit. Instead we turn the panel truly black with a DDC/CI power-off
     // (VCP 0xD6 = 0x04), via IOAVService — the same path m1ddc uses. It CANNOT be turned
     // back on over DDC (the channel is dead while the panel is off), so we wake it by forcing
-    // a DisplayPort link retrain (briefly switch resolution and back). Targets the default
-    // external display (IOAVServiceCreate), matching the common laptop + one monitor setup.
-    private typealias AVCreateFn = @convention(c) (CFAllocator?) -> Unmanaged<CFTypeRef>?
+    // a DisplayPort link retrain (briefly switch resolution and back). Every attached
+    // external display is targeted, one IOAVService each.
+    private typealias AVCreateFn    = @convention(c) (CFAllocator?) -> Unmanaged<CFTypeRef>?
+    private typealias AVCreateSvcFn = @convention(c) (CFAllocator?, io_service_t) -> Unmanaged<CFTypeRef>?
     private typealias AVWriteFn  = @convention(c) (CFTypeRef, UInt32, UInt32, UnsafeMutableRawPointer, UInt32) -> Int32
     private static let avHandle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_NOW)
     private static let avCreate: AVCreateFn? = avHandle.flatMap { dlsym($0, "IOAVServiceCreate") }.map { unsafeBitCast($0, to: AVCreateFn.self) }
+    private static let avCreateSvc: AVCreateSvcFn? = avHandle.flatMap { dlsym($0, "IOAVServiceCreateWithService") }.map { unsafeBitCast($0, to: AVCreateSvcFn.self) }
     private static let avWrite:  AVWriteFn?  = avHandle.flatMap { dlsym($0, "IOAVServiceWriteI2C") }.map { unsafeBitCast($0, to: AVWriteFn.self) }
 
     private var externalIsOff = false   // only attempt a wake for a display we turned off
@@ -1738,17 +1740,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         activeDisplays().filter { CGDisplayIsBuiltin($0) == 0 }
     }
 
-    // Turn the external display truly black via DDC power mode (VCP 0xD6 = 0x04 = DPMS off).
+    // One IOAVService per *external* panel. IOAVServiceCreate() only ever hands back the
+    // default one, so on a two- or three-monitor desk every other display stayed lit; walk
+    // the IORegistry for the DCPAVServiceProxy nodes whose Location is "External" instead
+    // (the same enumeration m1ddc's `-d N` uses) so each panel gets its own DDC write.
+    private func externalAVServices() -> [CFTypeRef] {
+        guard let createSvc = Self.avCreateSvc else { return [] }
+        var iter = io_iterator_t()
+        guard IORegistryEntryCreateIterator(IORegistryGetRootEntry(kIOMainPortDefault), "IOService",
+                                            IOOptionBits(kIORegistryIterateRecursively), &iter) == KERN_SUCCESS
+        else { return [] }
+        defer { IOObjectRelease(iter) }
+        var out: [CFTypeRef] = []
+        var svc = IOIteratorNext(iter)
+        while svc != 0 {
+            var name = [CChar](repeating: 0, count: 128)
+            if IORegistryEntryGetName(svc, &name) == KERN_SUCCESS, String(cString: name) == "DCPAVServiceProxy",
+               let loc = IORegistryEntrySearchCFProperty(svc, "IOService", "Location" as CFString,
+                                                         kCFAllocatorDefault,
+                                                         IOOptionBits(kIORegistryIterateRecursively)) as? String,
+               loc == "External",
+               let av = createSvc(kCFAllocatorDefault, svc) {
+                out.append(av.takeRetainedValue())
+            }
+            IOObjectRelease(svc)
+            svc = IOIteratorNext(iter)
+        }
+        return out
+    }
+
+    // Turn every external display truly black via DDC power mode (VCP 0xD6 = 0x04 = DPMS off).
     private func externalDisplayOff() {
-        guard let create = Self.avCreate, let write = Self.avWrite, !externalDisplays().isEmpty,
-              let avU = create(kCFAllocatorDefault) else { return }
-        let av = avU.takeRetainedValue()
+        guard let write = Self.avWrite, !externalDisplays().isEmpty else { return }
+        var targets = externalAVServices()
+        if targets.isEmpty, let create = Self.avCreate, let avU = create(kCFAllocatorDefault) {
+            targets = [avU.takeRetainedValue()]                          // fallback: default external only
+        }
+        guard !targets.isEmpty else { return }
         let inputAddr: UInt8 = 0x51
-        var data: [UInt8] = [0x84, 0x03, 0xD6, 0x00, 0x04, 0]           // DDC "Set VCP" D6 = 0x04
-        data[5] = 0x6E ^ inputAddr ^ data[0] ^ data[1] ^ data[2] ^ data[3] ^ data[4]
-        for _ in 0..<2 {                                                 // write twice, like m1ddc
-            usleep(10_000)
-            _ = data.withUnsafeMutableBytes { write(av, 0x37, UInt32(inputAddr), $0.baseAddress!, 6) }
+        for av in targets {
+            // Fresh buffer per display: the payload goes out through a mutable pointer, so
+            // one panel's write can never hand the next one a scribbled-on packet.
+            var data: [UInt8] = [0x84, 0x03, 0xD6, 0x00, 0x04, 0]       // DDC "Set VCP" D6 = 0x04
+            data[5] = 0x6E ^ inputAddr ^ data[0] ^ data[1] ^ data[2] ^ data[3] ^ data[4]
+            for _ in 0..<2 {                                             // write twice, like m1ddc
+                usleep(10_000)
+                _ = data.withUnsafeMutableBytes { write(av, 0x37, UInt32(inputAddr), $0.baseAddress!, 6) }
+            }
         }
         externalIsOff = true
     }

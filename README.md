@@ -31,7 +31,7 @@ Before going to sleep you often want to leave your Mac running for a little long
 - ⚡ **Now** — skip the countdown and run your chosen action (lock / turn off display / sleep) immediately, in one click.
 - 🔒 **Lock screen** — lock to the login window when time's up.
 - 🖥️ **Turn off display** — lock *and* power down the display to save energy.
-- 🌑 **Screen Off (no lock)** — a black screen without locking: built-in brightness → 0, external display → DDC power-off, keyboard backlight → 0, and the audio output **muted** (level dropped to 1%). The system stays awake so the GPU keeps rendering — ideal for leaving a render or an AI task running overnight. Move the mouse *or press a key* and brightness, backlight, volume and mute state all come back.
+- 🌑 **Screen Off (no lock)** — a black screen without locking: built-in brightness → 0, every external display → DDC power-off, keyboard backlight → 0, and the audio output **muted** (level dropped to 1%). The system stays awake so the GPU keeps rendering — ideal for leaving a render or an AI task running overnight. Move the mouse *or press a key* and brightness, backlight, volume and mute state all come back.
 - 💤 **Sleep** — put the whole Mac to sleep when the timer ends.
 - ♾️ **Keep awake forever (Never)** — one click to keep the screen on indefinitely; great for long tasks, presentations, or watching videos.
 - ☕ **Keep Awake** — a standalone toggle (below **Language**) that stops the Mac from going to sleep for as long as it's checked; the display can still turn off normally. Independent of the countdown, remembered across restarts, and released automatically when an end action deliberately puts the Mac to sleep.
@@ -103,7 +103,7 @@ Click the 💤 icon in the menu bar:
 | | 5 / 10 / 15 / 30 min, 1 hour | Starts a countdown; **click again to cancel** |
 | | Custom… | Enter any number of minutes; **remembered & pre-filled** next time |
 | | Never | Keep the screen on forever (menu bar shows `∞`) |
-| **When Time's Up** | Screen Off | **Built-in** brightness → 0, **external** display → DDC power-off, **keyboard backlight** → 0, and the **audio output muted** (all true black and silent, **no lock**); keeps things awake so the GPU keeps rendering. Mouse *or keyboard* brings it back: display + keyboard brightness, volume and mute state are restored, and the external is re-lit via a DisplayPort link retrain |
+| **When Time's Up** | Screen Off | **Built-in** brightness → 0, **every external** display → DDC power-off, **keyboard backlight** → 0, and the **audio output muted** (all true black and silent, **no lock**); keeps things awake so the GPU keeps rendering. Mouse *or keyboard* brings it back: display + keyboard brightness, volume and mute state are restored, and the externals are re-lit via a DisplayPort link retrain |
 | | Lock Screen | Lock only |
 | | Lock & Turn Off Display | Lock + power down the display |
 | | Lock, Off & Sleep | Lock + put the Mac to sleep |
@@ -130,7 +130,7 @@ SleepBar is a friendly menu-bar wrapper around capabilities already built into m
 | Keep Awake (always-on toggle) | `caffeinate -is` with no `-t` — runs until you uncheck it or quit |
 | Turn off display | `pmset displaysleepnow` |
 | Screen Off — built-in | `DisplayServicesSetBrightness` to 0 + `caffeinate -dis`; `IOHIDSystem` `HIDIdleTime` watches for your return and auto-restores brightness |
-| Screen Off — external | `IOAVServiceWriteI2C` sends DDC power-off (VCP `D6=04`) for true black; on return, a momentary refresh-rate switch (same resolution, `CGConfigureDisplayWithDisplayMode`) forces a DisplayPort link retrain to re-light it — fast, no window reshuffle |
+| Screen Off — external | `IOAVServiceWriteI2C` sends DDC power-off (VCP `D6=04`) to **every** attached external display (one `IOAVService` per `DCPAVServiceProxy` whose `Location` is `External`) for true black; on return, a momentary refresh-rate switch (same resolution, `CGConfigureDisplayWithDisplayMode`) forces a DisplayPort link retrain to re-light it — fast, no window reshuffle |
 | Screen Off — keyboard backlight | `CoreBrightness` `KeyboardBrightnessClient` saves the level, sets 0, restores on return |
 | Screen Off — audio | AppleScript `volume settings`: the level is saved, dropped to 1% and the output **muted**; both are restored on return. On outputs macOS can't attenuate in software (HDMI, most USB DACs, AirPlay) there is no level to restore and the mute is the whole effect |
 | Screen Off — detecting your return | A global mouse monitor plus a 1 Hz watch on the `IOHIDSystem` idle clock, which keystrokes also reset — so the keyboard wakes it too, with **no Accessibility permission** |
