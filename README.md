@@ -23,7 +23,9 @@ Before going to sleep you often want to leave your Mac running for a little long
 
 **SleepBar** moves that control to your menu bar. Click the icon, pick a duration, and your screen stays awake for exactly that long. When the countdown ends, your Mac **automatically locks, turns off the display, or even goes to sleep** — whatever you chose. Your task finishes, and your Mac rests.
 
-> No system settings are modified and no `sudo` is required. The moment the timer ends, everything returns to normal.
+SleepBar also puts three everyday power controls in the same menu. **System Display Off** shows and changes macOS's current “turn display off when inactive” time; changing it requires administrator authorization because it writes a system power setting. **Screen Off 1 Min Early** blacks out the displays just before that system deadline, without locking, so you can return without entering a password. **Keep Awake** prevents the Mac itself from sleeping until you turn it off, while still allowing the displays to switch off normally.
+
+> Countdown timers, no-lock Screen Off, Timed Lock, and Keep Awake do not modify macOS energy settings and need no administrator access. Only changing the **System Display Off** time requests permission.
 
 ## ✨ Features
 
@@ -48,7 +50,7 @@ Before going to sleep you often want to leave your Mac running for a little long
 
 | Chinese UI | English UI |
 |:---:|:---:|
-| ![SleepBar Chinese menu bar screen-off timer demo](screenshots/CN.gif) | ![SleepBar English menu bar auto lock and sleep timer demo](screenshots/English.gif) |
+| ![SleepBar Chinese menu bar screen-off timer](screenshots/CN.png) | ![SleepBar English menu bar screen-off timer](screenshots/English.png) |
 
 ## 🚀 Installation
 
@@ -98,19 +100,19 @@ Click the 💤 icon in the menu bar:
 
 | Section | Option | What it does |
 |---|---|---|
-| **Update** | Version X available | Appears **only** when a newer release exists; click to open the download page |
+| **Update** | Download Update X… | Appears **only** when a newer release exists; click to open the download page |
 | **Screen Off Timer** | Now | Run the "When Time's Up" action **immediately**, no countdown |
 | | 5 / 10 / 15 / 30 min, 1 hour | Starts a countdown; **click again to cancel** |
 | | Custom… | Enter any number of minutes; **remembered & pre-filled** next time |
 | | Never | Keep the screen on forever (menu bar shows `∞`) |
-| **When Time's Up** | Screen Off | **Built-in** brightness → 0, **every external** display → DDC power-off, **keyboard backlight** → 0, and the **audio output muted** (all true black and silent, **no lock**); keeps things awake so the GPU keeps rendering. Mouse *or keyboard* brings it back: display + keyboard brightness, volume and mute state are restored, and the externals are re-lit via a DisplayPort link retrain |
-| | Lock Screen | Lock only |
-| | Lock & Turn Off Display | Lock + power down the display |
-| | Lock, Off & Sleep | Lock + put the Mac to sleep |
-| | Lock, Off & Stay Awake | Lock + power down the display, but keep the system awake |
-| **Timed Lock** | Timed Lock… | A three-line dialog: **"Lock after `[N]` min idle"**, then *either* **"Run for `[M]` min, then stop"** *or* **"Until `[HH]`:`[MM]` then stop."** The clock time is two two-digit boxes around a fixed colon, and the hour hands over to the minute on its second digit. Clicking into any of the dialog's boxes selects its contents, so a value is replaced by typing, not by clearing it first. The two end times are either/or (filling one clears the other), and a time that's already passed today means tomorrow. Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Your values are remembered & pre-filled |
+| **When Time's Up** | Screen Off (No Lock) | **Built-in** brightness → 0, **every external** display → DDC power-off, **keyboard backlight** → 0, and the **audio output muted** (all true black and silent, **no lock**); keeps things awake so the GPU keeps rendering. Mouse *or keyboard* brings it back: display + keyboard brightness, volume and mute state are restored, and the externals are re-lit via a DisplayPort link retrain |
+| | Lock Only | Lock only |
+| | Lock + Display Off | Lock + power down the display |
+| | Lock + Sleep | Lock + put the Mac to sleep |
+| | Lock + Display Off, Stay Awake | Lock + power down the display, but keep the system awake |
+| **Timed Lock** | Configure | A three-line dialog: **"Lock after `[N]` min idle"**, then *either* **"Run for `[M]` min, then stop"** *or* **"Until `[HH]`:`[MM]` then stop."** The clock time is two two-digit boxes around a fixed colon, and the hour hands over to the minute on its second digit. Clicking into any of the dialog's boxes selects its contents, so a value is replaced by typing, not by clearing it first. The two end times are either/or (filling one clears the other), and a time that's already passed today means tomorrow. Auto-locks every time you're idle that long, until the time's up. **Click again to stop.** Your values are remembered & pre-filled |
 | **System Display Off** | *(current value)* → 1 min … 3 hours / Never | Shows the system's own "turn display off when inactive" time and changes it in two clicks (one admin-password prompt; writes to the power profile you're actually on) |
-| | Auto Screen Off 1 min early | Runs SleepBar's own no-lock **Screen Off** one minute before that system deadline, so you come back to a black screen with no password prompt |
+| | Screen Off 1 min early | Runs SleepBar's own no-lock **Screen Off** one minute before that system deadline, so you come back to a black screen with no password prompt |
 | **Language** | English · 中文 · Español · العربية · Português (Brasil) · 日本語 · Deutsch | Switch the whole menu instantly |
 | **Keep Awake** | toggle | Keep the Mac from sleeping until you switch it back off — independent of the countdown, remembered across restarts |
 | **Launch at Login** | toggle | Auto-start when you log in (a standard macOS Login Item). `install.sh` turns it **on** by default — uncheck here to disable |
